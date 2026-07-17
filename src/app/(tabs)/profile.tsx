@@ -40,12 +40,6 @@ export default function PlanTab() {
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const activeMeal = meals.find((meal) => meal.id === activeMealId) ?? meals[0]
-  const mealTotal = useMemo(
-    () => (activeMeal ? macroFor(activeMeal) : empty),
-    [
-      activeMeal,
-    ],
-  )
   const dayTotal = useMemo(
     () => meals.reduce((total, meal) => add(total, macroFor(meal)), empty),
     [
@@ -64,7 +58,7 @@ export default function PlanTab() {
 
   return (
     <SafeAreaView className='flex-1 bg-[#f7f7f5]'>
-      <ScrollView contentContainerClassName='pb-6' showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View className='px-5 pt-5'>
           <View className='flex-row justify-between items-start'>
             <View>
@@ -117,7 +111,7 @@ export default function PlanTab() {
               className='flex-row items-center justify-between py-3 border-t border-zinc-100'
             >
               <Text className='font-geist-mono text-xs text-zinc-800 flex-1 pr-3'>{group}</Text>
-              <View className='flex-row items-center gap-3'>
+              <View className='flex-row items-center gap-1'>
                 <TouchableOpacity
                   accessibilityLabel={`Restar ${group}`}
                   onPress={() =>
@@ -127,15 +121,9 @@ export default function PlanTab() {
                 >
                   <Feather name='minus' size={14} />
                 </TouchableOpacity>
-                <TextInput
-                  value={`${activeMeal.exchanges[group] ?? 0}`}
-                  onChangeText={(value) =>
-                    setExchange(activeMeal.id, group, Number(value.replace(',', '.')))
-                  }
-                  keyboardType='decimal-pad'
-                  selectTextOnFocus
-                  className='font-geist-mono text-center text-sm w-9 text-zinc-950'
-                />
+                <Text className='font-geist-mono text-center text-sm w-14 px-3 py-3 rounded-full text-zinc-950'>
+                  {activeMeal.exchanges[group] ?? 0}
+                </Text>
                 <TouchableOpacity
                   accessibilityLabel={`Sumar ${group}`}
                   onPress={() =>
@@ -152,11 +140,15 @@ export default function PlanTab() {
 
         <View className='mx-5 mt-4 bg-zinc-950 rounded-3xl p-5'>
           <Text className='font-geist-mono text-[11px] tracking-widest text-zinc-400'>RESUMEN</Text>
-          <View className='mt-4 pb-4 border-b border-zinc-700'>
-            <Text className='font-geist-mono text-sm text-white'>{activeMeal.name}</Text>
-            <MacroLine values={mealTotal} light />
+          <View className='mt-4'>
+            {meals.map((meal) => (
+              <View key={meal.id} className='pb-4 mb-4 border-b border-zinc-700'>
+                <Text className='font-geist-mono text-sm text-white'>{meal.name}</Text>
+                <MacroLine values={macroFor(meal)} light />
+              </View>
+            ))}
           </View>
-          <View className='pt-4'>
+          <View>
             <Text className='font-geist-mono text-sm text-white'>Total del día</Text>
             <MacroLine values={dayTotal} light />
           </View>
@@ -251,7 +243,7 @@ function MealManager({
       <View className='flex-1 bg-black/30 justify-end'>
         <View className='bg-[#f7f7f5] rounded-t-3xl p-5 max-h-[85%]'>
           <View className='flex-row justify-between items-center mb-4'>
-            <Text className='font-geist-mono text-xl text-zinc-950'>Editar comidas</Text>
+            <Text className='font-geist-mono-medium text-lg text-zinc-950'>Editar comidas</Text>
             <TouchableOpacity onPress={close} className='p-1'>
               <Feather name='x' size={22} />
             </TouchableOpacity>
@@ -265,7 +257,7 @@ function MealManager({
                 <TextInput
                   value={meal.name}
                   onChangeText={(name) => renameMeal(meal.id, name)}
-                  className='flex-1 bg-white border border-zinc-200 rounded-xl px-3 py-3 font-geist-mono text-sm text-zinc-950'
+                  className='flex-1 bg-white border border-zinc-200 rounded-full px-4 py-3 font-geist-mono-light text-sm text-zinc-950'
                 />
                 <TouchableOpacity
                   onPress={() => askRemove(meal)}
@@ -298,6 +290,7 @@ function MealManager({
             <Text className='font-geist-mono text-[11px] leading-4 text-zinc-500 mt-4'>
               Puedes añadir, renombrar o eliminar comidas. Debe permanecer al menos una.
             </Text>
+            <View className='h-8' />
           </ScrollView>
         </View>
       </View>
