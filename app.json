@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "PM Expo Starter Template",
-    "slug": "pm-expo-starter-template",
+    "name": "fit2",
+    "slug": "fit2",
     "version": "0.0.1",
-    "scheme": "com.pm.template",
+    "scheme": "fit2",
     "platforms": ["ios", "android"],
     "plugins": [
       "expo-dev-client",
@@ -40,7 +40,7 @@
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pm.template",
+      "bundleIdentifier": "com.pm.fit2",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -51,7 +51,7 @@
         "foregroundImage": "./src/assets/appIcons/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.pm.template",
+      "package": "com.pm.fit2",
       "versionCode": 1
     },
     "extra": {
