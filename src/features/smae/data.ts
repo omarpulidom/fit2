@@ -19,12 +19,6 @@ export const GROUP_MACROS: Record<SmaeGroup, Macro> = {
     carbs: 15,
     fat: 0,
   },
-  'Cereales · con grasa': {
-    kcal: 115,
-    protein: 2,
-    carbs: 15,
-    fat: 5,
-  },
   Leguminosas: {
     kcal: 120,
     protein: 8,
@@ -48,12 +42,6 @@ export const GROUP_MACROS: Record<SmaeGroup, Macro> = {
     protein: 7,
     carbs: 0,
     fat: 5,
-  },
-  'AOA · alto aporte de grasa': {
-    kcal: 100,
-    protein: 7,
-    carbs: 0,
-    fat: 8,
   },
   'Leche · descremada': {
     kcal: 95,
