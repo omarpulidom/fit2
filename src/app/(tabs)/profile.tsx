@@ -25,7 +25,7 @@ export default function PlanTab() {
 
   if (!activeMeal) return null
 
-  return <SafeAreaView className='flex-1 bg-[#f7f7f5]'><ScrollView contentContainerClassName='pb-36' showsVerticalScrollIndicator={false}>
+  return <SafeAreaView className='flex-1 bg-[#f7f7f5]'><ScrollView contentContainerClassName='pb-6' showsVerticalScrollIndicator={false}>
     <View className='px-5 pt-5'><View className='flex-row justify-between items-start'><View><Text className='font-geist-mono text-[11px] tracking-widest text-zinc-500'>CONFIGURACIÓN</Text><Text className='font-geist-mono text-3xl text-zinc-950 mt-1'>Equivalentes</Text></View><TouchableOpacity onPress={() => setManagerOpen(true)} className='border border-zinc-300 rounded-full px-3 py-2 flex-row gap-2'><Feather name='edit-3' size={14} color='#3f3f46'/><Text className='font-geist-mono text-xs text-zinc-800'>Editar comidas</Text></TouchableOpacity></View><Text className='font-geist-mono text-sm text-zinc-500 leading-5 mt-3 mb-5'>Selecciona una comida y asigna sus equivalentes. El resumen se actualiza al instante.</Text></View>
 
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName='px-5 gap-2 pb-4'>{meals.map(meal => <TouchableOpacity key={meal.id} onPress={() => setActiveMealId(meal.id)} className={`rounded-full px-4 py-2.5 ${meal.id === activeMeal.id ? 'bg-zinc-950' : 'bg-white border border-zinc-200'}`}><Text className={`font-geist-mono text-xs ${meal.id === activeMeal.id ? 'text-white' : 'text-zinc-600'}`}>{meal.name}</Text></TouchableOpacity>)}</ScrollView>
