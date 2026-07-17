@@ -15,7 +15,7 @@ const config: Config = {
       colors: Colors,
       fontFamily: {
         'geist-mono': [
-          AppFontNames.GeistMono_500Medium,
+          AppFontNames.GeistMono_400Regular,
         ],
         'geist-mono-light': [
           AppFontNames.GeistMono_300Light,
@@ -33,18 +33,18 @@ const config: Config = {
           AppFontNames.GeistMono_700Bold,
         ],
         sans: [
-          AppFontNames.GeistMono_500Medium,
+          AppFontNames.GeistMono_400Regular,
           'sans-serif',
         ],
         mono: [
-          AppFontNames.GeistMono_500Medium,
+          AppFontNames.GeistMono_400Regular,
         ],
         primary: [
-          AppFontNames.GeistMono_500Medium,
+          AppFontNames.GeistMono_400Regular,
           'sans-serif',
         ],
         secondary: [
-          AppFontNames.GeistMono_500Medium,
+          AppFontNames.GeistMono_400Regular,
           'sans-serif',
         ],
       },
