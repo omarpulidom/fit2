@@ -178,7 +178,7 @@ export default function HomeTab() {
             </Text>
           </View>
           {externalFoods.length === 0 ? (
-            <Text className='font-geist-mono text-sm text-zinc-500 leading-6'>
+            <Text className='font-geist-mono text-sm text-zinc-500'>
               Aún no registras alimentos. Añade un alimento SMAE desde tu plan o uno externo aquí.
             </Text>
           ) : (
@@ -202,7 +202,7 @@ export default function HomeTab() {
           <Text className='text-white font-geist-mono text-base tracking-widest'>
             REAJUSTE DINÁMICO
           </Text>
-          <Text className='text-zinc-400 font-geist-mono text-sm leading-5 mt-2'>
+          <Text className='text-zinc-400 font-geist-mono text-sm mt-2'>
             Compensa kcal no asignadas con cereales sin grasa y grasas sin proteína. Tus grupos base
             no se modifican.
           </Text>

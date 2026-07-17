@@ -83,7 +83,7 @@ export default function PlanTab() {
               <Text className='font-geist-mono text-xs text-zinc-800'>Editar comidas</Text>
             </TouchableOpacity>
           </View>
-          <Text className='font-geist-mono-light text-sm text-zinc-500 leading-5 mt-4 mb-5'>
+          <Text className='font-geist-mono-light text-sm text-zinc-500 mt-4 mb-5'>
             Selecciona una comida y asigna sus equivalentes. El resumen se actualiza al instante.
           </Text>
         </View>
@@ -288,7 +288,7 @@ function MealManager({
           <Feather name='plus' color='white' />
         </TouchableOpacity>
       </View>
-      <Text className='font-geist-mono text-xs leading-4 text-zinc-500 mt-4'>
+      <Text className='font-geist-mono text-xs text-zinc-500 mt-4'>
         Puedes añadir, renombrar o eliminar comidas. Debe permanecer al menos una.
       </Text>
       <View className='h-4' />

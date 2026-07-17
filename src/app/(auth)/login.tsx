@@ -238,7 +238,7 @@ export default function Login() {
             {/* Terms and Privacy */}
             <Animated.View entering={FadeInDown.delay(400)} className='mt-auto pt-8'>
               <View className='rounded-2xl bg-primary-100 p-5'>
-                <Text className='text-center text-xs leading-5 text-gray-600'>
+                <Text className='text-center text-xs text-gray-600'>
                   Al iniciar sesión, aceptas nuestros{' '}
                   <Text
                     className='text-primary underline'
