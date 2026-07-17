@@ -141,7 +141,7 @@ export default function HomeTab() {
       ]}
     >
       <ScrollView contentContainerClassName='px-6 pt-4' showsVerticalScrollIndicator={false}>
-        <View className='flex-row justify-between items-start mb-7'>
+        <View className='flex-row justify-between items-start mb-4'>
           <View>
             <Text className='font-geist-mono text-xs tracking-widest text-zinc-500'>
               SMAE / HOY
