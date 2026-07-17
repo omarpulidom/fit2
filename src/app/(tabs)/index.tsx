@@ -114,7 +114,7 @@ export default function HomeTab() {
       <View className='flex-row justify-between'>
         <View className='flex-row items-center'>
           <Text className='text-zinc-600 font-geist-mono text-sm'>{label}</Text>
-          <Text className='text-zinc-600 font-geist-mono text-sm'> · </Text>
+          <Text className='text-zinc-950 font-geist-mono text-sm'> · </Text>
           <Text className='text-zinc-600 font-geist-mono-light text-xs'>{units}</Text>
         </View>
         <Text className='text-zinc-900 font-geist-mono text-sm'>
