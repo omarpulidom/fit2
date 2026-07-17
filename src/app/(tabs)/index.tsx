@@ -128,8 +128,15 @@ export default function HomeTab() {
     </View>
   )
   return (
-    <SafeAreaView className='flex-1 bg-[#f7f7f5]'>
-      <ScrollView contentContainerClassName='px-5 pt-5 pb-6' showsVerticalScrollIndicator={false}>
+    <SafeAreaView
+      className='flex-1 bg-[#f7f7f5]'
+      edges={[
+        'top',
+        'left',
+        'right',
+      ]}
+    >
+      <ScrollView contentContainerClassName='px-6 pt-4' showsVerticalScrollIndicator={false}>
         <View className='flex-row justify-between items-start mb-7'>
           <View>
             <Text className='font-mono text-[11px] tracking-widest text-zinc-500'>SMAE / HOY</Text>

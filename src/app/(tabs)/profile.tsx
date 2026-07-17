@@ -58,9 +58,16 @@ export default function PlanTab() {
   if (!activeMeal) return null
 
   return (
-    <SafeAreaView className='flex-1 bg-[#f7f7f5]'>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View className='px-5 pt-5'>
+    <SafeAreaView
+      className='flex-1 bg-[#f7f7f5]'
+      edges={[
+        'top',
+        'left',
+        'right',
+      ]}
+    >
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName='pb-6'>
+        <View className='px-6 pt-4'>
           <View className='flex-row justify-between items-start'>
             <View>
               <Text className='font-geist-mono text-[11px] tracking-widest text-zinc-500'>
