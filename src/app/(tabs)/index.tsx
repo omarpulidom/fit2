@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons'
 import { useMemo, useState } from 'react'
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import { GROUP_MACROS } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
 import type { Macro } from '@/features/smae/types'
@@ -250,82 +251,76 @@ function FoodModal({ visible, close, mode, setMode, form, setForm, meals, save }
     </View>
   )
   return (
-    <Modal visible={visible} animationType='slide' transparent>
-      <View className='flex-1 bg-black/30 justify-end'>
-        <View className='bg-[#f7f7f5] rounded-t-3xl p-5 max-h-[92%]'>
-          <View className='flex-row justify-between mb-5'>
-            <Text className='font-mono text-xl'>Alimento externo</Text>
-            <TouchableOpacity onPress={close}>
-              <Feather name='x' size={22} />
-            </TouchableOpacity>
-          </View>
-          <View className='flex-row mb-4 gap-2'>
-            <TouchableOpacity
-              onPress={() => setMode('macros')}
-              className={`px-3 py-2 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-            >
-              <Text
-                className={`font-mono text-xs ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
-              >
-                Completa
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setMode('calories')}
-              className={`px-3 py-2 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-            >
-              <Text
-                className={`font-mono text-xs ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
-              >
-                Solo calorías
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {field('name', 'Nombre')}
-            {field('kcal', 'kcal de etiqueta')}
-            {mode === 'macros' && (
-              <View className='flex-row gap-2'>
-                <View className='flex-1'>{field('protein', 'Proteína (g)')}</View>
-                <View className='flex-1'>{field('carbs', 'Carbos (g)')}</View>
-                <View className='flex-1'>{field('fat', 'Grasa (g)')}</View>
-              </View>
-            )}
-            <View className='flex-row gap-3'>
-              <View className='flex-1'>{field('ref', 'Porción etiqueta (g/ml)')}</View>
-              <View className='flex-1'>{field('eaten', 'Porción consumida')}</View>
-            </View>
-            <Text className='font-mono text-xs text-zinc-600 mb-2'>Comida</Text>
-            <View className='flex-row flex-wrap gap-2 mb-5'>
-              {meals.map((m: any) => (
-                <TouchableOpacity
-                  key={m.id}
-                  onPress={() =>
-                    setForm({
-                      ...form,
-                      mealId: m.id,
-                    })
-                  }
-                  className={`px-3 py-2 rounded-full ${form.mealId === m.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-                >
-                  <Text
-                    className={`font-mono text-xs ${form.mealId === m.id ? 'text-white' : 'text-zinc-700'}`}
-                  >
-                    {m.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text className='font-mono text-[11px] text-zinc-500 mb-4'>
-              Puedes tomar o seleccionar la etiqueta al registrar; esta v1 conserva el formulario
-              editable y no lee texto de imágenes.
-            </Text>
-            <TouchableOpacity onPress={save} className='bg-zinc-950 rounded-full p-4 mb-4'>
-              <Text className='font-mono text-center text-white'>Guardar alimento</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
+    <AppBottomSheet visible={visible} onDismiss={close} maxHeight={0.92}>
+      <View className='flex-row justify-between mb-5'>
+        <Text className='font-mono text-xl'>Alimento externo</Text>
+        <TouchableOpacity onPress={close}>
+          <Feather name='x' size={22} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+      <View className='flex-row mb-4 gap-2'>
+        <TouchableOpacity
+          onPress={() => setMode('macros')}
+          className={`px-3 py-2 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+        >
+          <Text
+            className={`font-mono text-xs ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
+          >
+            Completa
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setMode('calories')}
+          className={`px-3 py-2 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+        >
+          <Text
+            className={`font-mono text-xs ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
+          >
+            Solo calorías
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {field('name', 'Nombre')}
+      {field('kcal', 'kcal de etiqueta')}
+      {mode === 'macros' && (
+        <View className='flex-row gap-2'>
+          <View className='flex-1'>{field('protein', 'Proteína (g)')}</View>
+          <View className='flex-1'>{field('carbs', 'Carbos (g)')}</View>
+          <View className='flex-1'>{field('fat', 'Grasa (g)')}</View>
+        </View>
+      )}
+      <View className='flex-row gap-3'>
+        <View className='flex-1'>{field('ref', 'Porción etiqueta (g/ml)')}</View>
+        <View className='flex-1'>{field('eaten', 'Porción consumida')}</View>
+      </View>
+      <Text className='font-mono text-xs text-zinc-600 mb-2'>Comida</Text>
+      <View className='flex-row flex-wrap gap-2 mb-5'>
+        {meals.map((m: any) => (
+          <TouchableOpacity
+            key={m.id}
+            onPress={() =>
+              setForm({
+                ...form,
+                mealId: m.id,
+              })
+            }
+            className={`px-3 py-2 rounded-full ${form.mealId === m.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+          >
+            <Text
+              className={`font-mono text-xs ${form.mealId === m.id ? 'text-white' : 'text-zinc-700'}`}
+            >
+              {m.name}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <Text className='font-mono text-[11px] text-zinc-500 mb-4'>
+        Puedes tomar o seleccionar la etiqueta al registrar; esta v1 conserva el formulario editable
+        y no lee texto de imágenes.
+      </Text>
+      <TouchableOpacity onPress={save} className='bg-zinc-950 rounded-full p-4'>
+        <Text className='font-mono text-center text-white'>Guardar alimento</Text>
+      </TouchableOpacity>
+    </AppBottomSheet>
   )
 }

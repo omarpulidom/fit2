@@ -1,7 +1,8 @@
 import { Feather } from '@expo/vector-icons'
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, Modal, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import { GROUP_MACROS, GROUPS } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
 import type { Macro, Meal } from '@/features/smae/types'
@@ -239,62 +240,46 @@ function MealManager({
       },
     ])
   return (
-    <Modal visible={visible} animationType='slide' transparent onRequestClose={close}>
-      <View className='flex-1 bg-black/30 justify-end'>
-        <View className='bg-[#f7f7f5] rounded-t-3xl p-5 max-h-[85%]'>
-          <View className='flex-row justify-between items-center mb-4'>
-            <Text className='font-geist-mono-medium text-lg text-zinc-950'>Editar comidas</Text>
-            <TouchableOpacity onPress={close} className='p-1'>
-              <Feather name='x' size={22} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {meals.map((meal: Meal) => (
-              <View
-                key={meal.id}
-                className='flex-row items-center gap-2 py-2 border-t border-zinc-200'
-              >
-                <TextInput
-                  value={meal.name}
-                  onChangeText={(name) => renameMeal(meal.id, name)}
-                  className='flex-1 bg-white border border-zinc-200 rounded-full px-4 py-3 font-geist-mono-light text-sm text-zinc-950'
-                />
-                <TouchableOpacity
-                  onPress={() => askRemove(meal)}
-                  disabled={meals.length <= 1}
-                  className='w-10 h-10 items-center justify-center'
-                >
-                  <Feather
-                    name='trash-2'
-                    size={17}
-                    color={meals.length <= 1 ? '#d4d4d8' : '#b91c1c'}
-                  />
-                </TouchableOpacity>
-              </View>
-            ))}
-            <View className='flex-row gap-2 mt-5'>
-              <TextInput
-                value={newName}
-                onChangeText={setNewName}
-                placeholder='Nueva comida'
-                placeholderTextColor='#71717a'
-                className='flex-1 bg-white border border-zinc-200 rounded-full px-4 py-3 font-geist-mono text-sm text-zinc-950'
-              />
-              <TouchableOpacity
-                onPress={create}
-                className='bg-zinc-950 rounded-full px-4 justify-center'
-              >
-                <Feather name='plus' color='white' />
-              </TouchableOpacity>
-            </View>
-            <Text className='font-geist-mono text-[11px] leading-4 text-zinc-500 mt-4'>
-              Puedes añadir, renombrar o eliminar comidas. Debe permanecer al menos una.
-            </Text>
-            <View className='h-8' />
-          </ScrollView>
-        </View>
+    <AppBottomSheet visible={visible} onDismiss={close}>
+      <View className='flex-row justify-between items-center mb-4'>
+        <Text className='font-geist-mono-medium text-lg text-zinc-950'>Editar comidas</Text>
+        <TouchableOpacity onPress={close} className='p-1'>
+          <Feather name='x' size={22} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+      {meals.map((meal: Meal) => (
+        <View key={meal.id} className='flex-row items-center gap-2 py-2 border-t border-zinc-200'>
+          <TextInput
+            value={meal.name}
+            onChangeText={(name) => renameMeal(meal.id, name)}
+            className='flex-1 bg-white border border-zinc-200 rounded-full px-4 py-3 font-geist-mono-light text-sm text-zinc-950'
+          />
+          <TouchableOpacity
+            onPress={() => askRemove(meal)}
+            disabled={meals.length <= 1}
+            className='w-10 h-10 items-center justify-center'
+          >
+            <Feather name='trash-2' size={17} color={meals.length <= 1 ? '#d4d4d8' : '#b91c1c'} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      <View className='flex-row gap-2 mt-5'>
+        <TextInput
+          value={newName}
+          onChangeText={setNewName}
+          placeholder='Nueva comida'
+          placeholderTextColor='#71717a'
+          className='flex-1 bg-white border border-zinc-200 rounded-full px-4 py-3 font-geist-mono text-sm text-zinc-950'
+        />
+        <TouchableOpacity onPress={create} className='bg-zinc-950 rounded-full px-4 justify-center'>
+          <Feather name='plus' color='white' />
+        </TouchableOpacity>
+      </View>
+      <Text className='font-geist-mono text-[11px] leading-4 text-zinc-500 mt-4'>
+        Puedes añadir, renombrar o eliminar comidas. Debe permanecer al menos una.
+      </Text>
+      <View className='h-4' />
+    </AppBottomSheet>
   )
 }
 
@@ -319,34 +304,28 @@ function CatalogModal({ visible, close, catalog, meals, addExternal }: any) {
       },
     ])
   return (
-    <Modal visible={visible} animationType='slide' transparent onRequestClose={close}>
-      <View className='flex-1 bg-black/30 justify-end'>
-        <View className='bg-[#f7f7f5] rounded-t-3xl p-5 max-h-[85%]'>
-          <View className='flex-row justify-between items-center mb-4'>
-            <Text className='font-geist-mono text-xl text-zinc-950'>Catálogo SMAE</Text>
-            <TouchableOpacity onPress={close} className='p-1'>
-              <Feather name='x' size={22} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {catalog.map((food: any) => (
-              <TouchableOpacity
-                key={food.id}
-                onPress={() => choose(food)}
-                className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
-              >
-                <View className='flex-1 pr-3'>
-                  <Text className='font-geist-mono text-sm text-zinc-900'>{food.name}</Text>
-                  <Text className='font-geist-mono text-[11px] text-zinc-500 mt-1'>
-                    {food.group} · {food.portion}
-                  </Text>
-                </View>
-                <Feather name='plus' size={17} color='#52525b' />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+    <AppBottomSheet visible={visible} onDismiss={close}>
+      <View className='flex-row justify-between items-center mb-4'>
+        <Text className='font-geist-mono text-xl text-zinc-950'>Catálogo SMAE</Text>
+        <TouchableOpacity onPress={close} className='p-1'>
+          <Feather name='x' size={22} />
+        </TouchableOpacity>
       </View>
-    </Modal>
+      {catalog.map((food: any) => (
+        <TouchableOpacity
+          key={food.id}
+          onPress={() => choose(food)}
+          className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
+        >
+          <View className='flex-1 pr-3'>
+            <Text className='font-geist-mono text-sm text-zinc-900'>{food.name}</Text>
+            <Text className='font-geist-mono text-[11px] text-zinc-500 mt-1'>
+              {food.group} · {food.portion}
+            </Text>
+          </View>
+          <Feather name='plus' size={17} color='#52525b' />
+        </TouchableOpacity>
+      ))}
+    </AppBottomSheet>
   )
 }
