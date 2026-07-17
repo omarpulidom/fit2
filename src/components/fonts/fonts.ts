@@ -1,4 +1,5 @@
 import {
+  GeistMono_300Light,
   GeistMono_400Regular,
   GeistMono_500Medium,
   GeistMono_600SemiBold,
@@ -6,6 +7,7 @@ import {
 } from '@expo-google-fonts/geist-mono'
 
 export const AppFonts = {
+  GeistMono_300Light,
   GeistMono_400Regular,
   GeistMono_500Medium,
   GeistMono_600SemiBold,

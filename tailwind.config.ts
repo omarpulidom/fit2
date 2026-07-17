@@ -17,6 +17,21 @@ const config: Config = {
         'geist-mono': [
           AppFontNames.GeistMono_500Medium,
         ],
+        'geist-mono-light': [
+          AppFontNames.GeistMono_300Light,
+        ],
+        'geist-mono-regular': [
+          AppFontNames.GeistMono_400Regular,
+        ],
+        'geist-mono-medium': [
+          AppFontNames.GeistMono_500Medium,
+        ],
+        'geist-mono-semibold': [
+          AppFontNames.GeistMono_600SemiBold,
+        ],
+        'geist-mono-bold': [
+          AppFontNames.GeistMono_700Bold,
+        ],
         sans: [
           AppFontNames.GeistMono_500Medium,
           'sans-serif',
