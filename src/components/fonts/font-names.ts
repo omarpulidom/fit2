@@ -1,24 +1,8 @@
 import type { AppFontKeys } from './fonts'
 
 export const AppFontNames = {
-  Montserrat_100Thin: 'Montserrat_100Thin',
-  Montserrat_100Thin_Italic: 'Montserrat_100Thin_Italic',
-  Montserrat_200ExtraLight: 'Montserrat_200ExtraLight',
-  Montserrat_200ExtraLight_Italic: 'Montserrat_200ExtraLight_Italic',
-  Montserrat_300Light: 'Montserrat_300Light',
-  Montserrat_300Light_Italic: 'Montserrat_300Light_Italic',
-  Montserrat_400Regular: 'Montserrat_400Regular',
-  Montserrat_400Regular_Italic: 'Montserrat_400Regular_Italic',
-  Montserrat_500Medium: 'Montserrat_500Medium',
-  Montserrat_500Medium_Italic: 'Montserrat_500Medium_Italic',
-  Montserrat_600SemiBold: 'Montserrat_600SemiBold',
-  Montserrat_600SemiBold_Italic: 'Montserrat_600SemiBold_Italic',
-  Montserrat_700Bold: 'Montserrat_700Bold',
-  Montserrat_700Bold_Italic: 'Montserrat_700Bold_Italic',
-  Montserrat_800ExtraBold: 'Montserrat_800ExtraBold',
-  Montserrat_800ExtraBold_Italic: 'Montserrat_800ExtraBold_Italic',
-  Montserrat_900Black: 'Montserrat_900Black',
-  Montserrat_900Black_Italic: 'Montserrat_900Black_Italic',
-} as const satisfies {
-  [key in AppFontKeys]: AppFontKeys
-}
+  GeistMono_400Regular: 'GeistMono_400Regular',
+  GeistMono_500Medium: 'GeistMono_500Medium',
+  GeistMono_600SemiBold: 'GeistMono_600SemiBold',
+  GeistMono_700Bold: 'GeistMono_700Bold',
+} as const satisfies Record<AppFontKeys, AppFontKeys>
