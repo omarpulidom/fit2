@@ -23,6 +23,9 @@ android
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
 
+# Temporary lock files created by Microsoft Excel
+~$*.xlsx
+
 # Env
 .env
 .env.*
