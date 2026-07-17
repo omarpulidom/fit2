@@ -19,7 +19,7 @@ export function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             >
               <Feather name={icon} size={20} color={focused ? '#18181b' : '#a1a1aa'} />
               <Text
-                className={`font-mono text-[10px] ${focused ? 'text-zinc-950' : 'text-zinc-400'}`}
+                className={`font-geist-mono text-[10px] ${focused ? 'text-zinc-950' : 'text-zinc-400'}`}
               >
                 {route.name === 'index' ? 'HOY' : 'PLAN'}
               </Text>

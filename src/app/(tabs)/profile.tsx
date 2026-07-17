@@ -70,7 +70,7 @@ export default function PlanTab() {
         <View className='px-6 pt-4'>
           <View className='flex-row justify-between items-start'>
             <View>
-              <Text className='font-geist-mono text-[11px] tracking-widest text-zinc-500'>
+              <Text className='font-geist-mono text-xs tracking-widest text-zinc-500'>
                 CONFIGURACIÓN
               </Text>
               <Text className='font-geist-mono text-3xl text-zinc-950 mt-1'>Equivalentes</Text>
@@ -83,7 +83,7 @@ export default function PlanTab() {
               <Text className='font-geist-mono text-xs text-zinc-800'>Editar comidas</Text>
             </TouchableOpacity>
           </View>
-          <Text className='font-geist-mono text-sm text-zinc-500 leading-5 mt-3 mb-5'>
+          <Text className='font-geist-mono-light text-sm text-zinc-500 leading-5 mt-3 mb-5'>
             Selecciona una comida y asigna sus equivalentes. El resumen se actualiza al instante.
           </Text>
         </View>
@@ -108,17 +108,21 @@ export default function PlanTab() {
           ))}
         </ScrollView>
 
-        <View className='mx-5 bg-white rounded-3xl p-5 border border-zinc-100'>
+        <View className='mx-5 bg-white rounded-3xl px-5 pt-6 pb-1 border border-zinc-100'>
           <View className='flex-row justify-between items-baseline mb-3'>
-            <Text className='font-geist-mono text-base text-zinc-950'>{activeMeal.name}</Text>
-            <Text className='font-geist-mono text-[11px] text-zinc-400'>equivalentes</Text>
+            <Text className='font-geist-mono-medium tracking-widest text-base text-zinc-950'>
+              {activeMeal.name.toUpperCase()}
+            </Text>
+            <Text className='font-geist-mono text-xs text-zinc-400'>equivalentes</Text>
           </View>
           {GROUPS.map((group) => (
             <View
               key={group}
-              className='flex-row items-center justify-between py-3 border-t border-zinc-100'
+              className='flex-row items-center justify-between py-2 border-t border-zinc-100'
             >
-              <Text className='font-geist-mono text-xs text-zinc-800 flex-1 pr-3'>{group}</Text>
+              <Text className='font-geist-mono-light text-xs text-zinc-800 flex-1 pr-2'>
+                {group}
+              </Text>
               <View className='flex-row items-center gap-1'>
                 <TouchableOpacity
                   accessibilityLabel={`Restar ${group}`}
@@ -147,7 +151,9 @@ export default function PlanTab() {
         </View>
 
         <View className='mx-5 mt-4 bg-zinc-950 rounded-3xl p-5'>
-          <Text className='font-geist-mono text-[11px] tracking-widest text-zinc-400'>RESUMEN</Text>
+          <Text className='font-geist-mono text-xs tracking-widest text-zinc-400'>
+            RESUMEN TOTAL
+          </Text>
           <View className='mt-4'>
             {meals.map((meal) => (
               <View key={meal.id} className='pb-4 mb-4 border-b border-zinc-700'>
@@ -167,7 +173,7 @@ export default function PlanTab() {
         >
           <View>
             <Text className='font-geist-mono text-sm text-zinc-900'>Catálogo SMAE</Text>
-            <Text className='font-geist-mono text-[11px] text-zinc-500 mt-1'>
+            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
               Registrar un alimento por equivalente
             </Text>
           </View>
@@ -282,7 +288,7 @@ function MealManager({
           <Feather name='plus' color='white' />
         </TouchableOpacity>
       </View>
-      <Text className='font-geist-mono text-[11px] leading-4 text-zinc-500 mt-4'>
+      <Text className='font-geist-mono text-xs leading-4 text-zinc-500 mt-4'>
         Puedes añadir, renombrar o eliminar comidas. Debe permanecer al menos una.
       </Text>
       <View className='h-4' />
@@ -326,7 +332,7 @@ function CatalogModal({ visible, close, catalog, meals, addExternal }: any) {
         >
           <View className='flex-1 pr-3'>
             <Text className='font-geist-mono text-sm text-zinc-900'>{food.name}</Text>
-            <Text className='font-geist-mono text-[11px] text-zinc-500 mt-1'>
+            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
               {food.group} · {food.portion}
             </Text>
           </View>
