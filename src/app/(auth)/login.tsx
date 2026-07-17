@@ -124,7 +124,7 @@ export default function Login() {
                     autoCorrect={false}
                     keyboardType='email-address'
                     className={`
-                      h-14 px-4 rounded-2xl border-2 text-black
+                      h-14 px-4 py-3 rounded-full border-2 text-black
                       ${emailFocused ? 'border-primary bg-white' : 'border-gray-200 bg-gray-50'}
                       `}
                   />
@@ -154,7 +154,7 @@ export default function Login() {
                       secureTextEntry={!showPassword}
                       autoCapitalize='none'
                       autoCorrect={false}
-                      className='flex-1 text-black'
+                      className='flex-1 px-4 py-3 rounded-full text-black'
                     />
                     <TouchableOpacity
                       onPress={handleTogglePassword}

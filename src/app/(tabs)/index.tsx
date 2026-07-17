@@ -245,7 +245,7 @@ function FoodModal({ visible, close, mode, setMode, form, setForm, meals, save }
         keyboardType={key === 'name' ? 'default' : 'decimal-pad'}
         placeholder='0'
         placeholderTextColor='#a1a1aa'
-        className='border border-zinc-200 bg-zinc-50 rounded-xl px-3 py-3 font-mono text-zinc-950'
+        className='border border-zinc-200 bg-zinc-50 rounded-full px-4 py-3 font-mono text-zinc-950'
       />
     </View>
   )
