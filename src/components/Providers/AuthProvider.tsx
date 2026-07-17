@@ -123,21 +123,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       id: 'mock-user-id',
       firstName: 'User',
       lastName: 'Test',
-      middleName: 'Mock',
-      phone: '5551234567',
       email: 'mock@example.com',
-      avatarUrl: null,
-
-      roles: [
-        {
-          role: 'patient',
-          modules: [],
-        },
-      ],
-      accessLevel: 'PA',
-      gender: 'M',
-      birthDate: '1990-01-01',
-
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
