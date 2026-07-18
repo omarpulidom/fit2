@@ -32,6 +32,12 @@ const config: Config = {
         'geist-mono-bold': [
           AppFontNames.GeistMono_700Bold,
         ],
+        doto: [
+          AppFontNames.DotoRounded_400Regular,
+        ],
+        'doto-medium': [
+          AppFontNames.DotoRounded_500Medium,
+        ],
         sans: [
           AppFontNames.GeistMono_400Regular,
           'sans-serif',
