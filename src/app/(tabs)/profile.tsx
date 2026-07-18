@@ -1,11 +1,18 @@
 import { Feather } from '@expo/vector-icons'
-import { useEffect, useMemo, useState } from 'react'
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetFlatList,
+  BottomSheetModal,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
-import { GROUP_MACROS, GROUPS } from '@/features/smae/data'
+import { CATALOG, GROUP_MACROS, GROUPS } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
-import type { Macro, Meal } from '@/features/smae/types'
+import type { ExternalFood, Food, Macro, Meal, SmaeGroup } from '@/features/smae/types'
 
 const empty: Macro = {
   kcal: 0,
@@ -34,8 +41,7 @@ const macroFor = (meal: Meal) =>
 const number = (value: number) => `${Number(value.toFixed(1))}`
 
 export default function PlanTab() {
-  const { meals, catalog, setExchange, addMeal, renameMeal, removeMeal, addExternal } =
-    useSmaeStore()
+  const { meals, setExchange, addMeal, renameMeal, removeMeal, addExternal } = useSmaeStore()
   const [activeMealId, setActiveMealId] = useState(meals[0]?.id ?? '')
   const [managerOpen, setManagerOpen] = useState(false)
   const [catalogOpen, setCatalogOpen] = useState(false)
@@ -194,7 +200,6 @@ export default function PlanTab() {
       <CatalogModal
         visible={catalogOpen}
         close={() => setCatalogOpen(false)}
-        catalog={catalog}
         meals={meals}
         addExternal={addExternal}
       />
@@ -217,6 +222,19 @@ function MacroLine({ values, light = false }: { values: Macro; light?: boolean }
   )
 }
 
+type MealManagerProps = {
+  visible: boolean
+  close: () => void
+  meals: Meal[]
+  activeMealId: string
+  setActiveMealId: (mealId: string) => void
+  newName: string
+  setNewName: (name: string) => void
+  addMeal: (name: string) => void
+  renameMeal: (mealId: string, name: string) => void
+  removeMeal: (mealId: string) => void
+}
+
 function MealManager({
   visible,
   close,
@@ -228,7 +246,7 @@ function MealManager({
   addMeal,
   renameMeal,
   removeMeal,
-}: any) {
+}: MealManagerProps) {
   const create = () => {
     const name = newName.trim()
     if (!name) return
@@ -295,8 +313,52 @@ function MealManager({
   )
 }
 
-function CatalogModal({ visible, close, catalog, meals, addExternal }: any) {
-  const choose = (food: any) =>
+const normalizeSearch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+
+type CatalogModalProps = {
+  visible: boolean
+  close: () => void
+  meals: Meal[]
+  addExternal: (food: Omit<ExternalFood, 'id' | 'createdAt'>) => void
+}
+
+function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps) {
+  const sheetRef = useRef<BottomSheetModal>(null)
+  const [query, setQuery] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | 'all'>('all')
+  const normalizedQuery = normalizeSearch(query.trim())
+  const filteredCatalog = useMemo(
+    () =>
+      CATALOG.filter(
+        (food) =>
+          (selectedGroup === 'all' || food.group === selectedGroup) &&
+          (!normalizedQuery || normalizeSearch(food.name).includes(normalizedQuery)),
+      ),
+    [
+      normalizedQuery,
+      selectedGroup,
+    ],
+  )
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />
+    ),
+    [],
+  )
+
+  useEffect(() => {
+    if (!visible) return
+    const frame = requestAnimationFrame(() => sheetRef.current?.present())
+    return () => cancelAnimationFrame(frame)
+  }, [
+    visible,
+  ])
+
+  const choose = (food: Food) =>
     Alert.alert(food.name, '¿En qué comida registras 1 equivalente?', [
       ...meals.map((meal: Meal) => ({
         text: meal.name,
@@ -315,29 +377,123 @@ function CatalogModal({ visible, close, catalog, meals, addExternal }: any) {
         style: 'cancel',
       },
     ])
+
+  if (!visible) return null
+
   return (
-    <AppBottomSheet visible={visible} onDismiss={close}>
-      <View className='flex-row justify-between items-center mb-4'>
-        <Text className='font-geist-mono text-xl text-zinc-950'>Catálogo SMAE</Text>
-        <TouchableOpacity onPress={close} className='p-1'>
-          <Feather name='x' size={22} />
-        </TouchableOpacity>
-      </View>
-      {catalog.map((food: any) => (
-        <TouchableOpacity
-          key={food.id}
-          onPress={() => choose(food)}
-          className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
-        >
-          <View className='flex-1 pr-3'>
-            <Text className='font-geist-mono text-sm text-zinc-900'>{food.name}</Text>
-            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
-              {food.group} · {food.portion}
-            </Text>
+    <BottomSheetModal
+      ref={sheetRef}
+      index={0}
+      snapPoints={[
+        '85%',
+      ]}
+      enableDynamicSizing={false}
+      enablePanDownToClose
+      keyboardBehavior='interactive'
+      keyboardBlurBehavior='restore'
+      backdropComponent={renderBackdrop}
+      onDismiss={close}
+      backgroundStyle={{
+        backgroundColor: '#f7f7f5',
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: '#a1a1aa',
+      }}
+    >
+      <BottomSheetFlatList
+        data={filteredCatalog}
+        keyExtractor={(food: Food) => food.id}
+        initialNumToRender={20}
+        maxToRenderPerBatch={20}
+        windowSize={10}
+        keyboardShouldPersistTaps='handled'
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+        }}
+        ListHeaderComponent={
+          <View>
+            <View className='flex-row justify-between items-center mb-4'>
+              <View>
+                <Text className='font-geist-mono text-xl text-zinc-950'>Catálogo SMAE</Text>
+                <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+                  {filteredCatalog.length} alimentos
+                </Text>
+              </View>
+              <TouchableOpacity onPress={close} className='p-1'>
+                <Feather name='x' size={22} />
+              </TouchableOpacity>
+            </View>
+            <BottomSheetTextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder='Buscar alimento'
+              placeholderTextColor='#a1a1aa'
+              className='border border-zinc-200 bg-white rounded-full px-4 py-3 font-geist-mono text-zinc-950'
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerClassName='gap-2 py-4'
+            >
+              <CatalogFilter
+                label='Todos'
+                selected={selectedGroup === 'all'}
+                onPress={() => setSelectedGroup('all')}
+              />
+              {GROUPS.map((group) => (
+                <CatalogFilter
+                  key={group}
+                  label={group}
+                  selected={selectedGroup === group}
+                  onPress={() => setSelectedGroup(group)}
+                />
+              ))}
+            </ScrollView>
           </View>
-          <Feather name='plus' size={17} color='#52525b' />
-        </TouchableOpacity>
-      ))}
-    </AppBottomSheet>
+        }
+        ListEmptyComponent={
+          <Text className='font-geist-mono text-base text-zinc-500 py-6'>
+            No encontramos alimentos con esa búsqueda.
+          </Text>
+        }
+        renderItem={({ item: food }: { item: Food }) => (
+          <TouchableOpacity
+            onPress={() => choose(food)}
+            className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
+          >
+            <View className='flex-1 pr-3'>
+              <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
+              <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+                {food.group} · {food.portion}
+              </Text>
+            </View>
+            <Feather name='plus' size={17} color='#52525b' />
+          </TouchableOpacity>
+        )}
+      />
+    </BottomSheetModal>
+  )
+}
+
+function CatalogFilter({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string
+  selected: boolean
+  onPress: () => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      className={`rounded-full px-3 py-2 ${selected ? 'bg-zinc-950' : 'bg-white border border-zinc-200'}`}
+    >
+      <Text className={`font-geist-mono text-xs ${selected ? 'text-white' : 'text-zinc-600'}`}>
+        {label}
+      </Text>
+    </TouchableOpacity>
   )
 }
