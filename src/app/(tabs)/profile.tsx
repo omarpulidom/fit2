@@ -3,14 +3,21 @@ import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetFlatList,
+  type BottomSheetFlatListMethods,
   BottomSheetModal,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
-import { CATALOG, GROUP_MACROS, GROUPS } from '@/features/smae/data'
+import {
+  CATALOG_BY_GROUP,
+  CATALOG_SEARCH_INDEX,
+  GROUP_MACROS,
+  GROUPS,
+  normalizeCatalogSearch,
+} from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
 import type { ExternalFood, Food, Macro, Meal, SmaeGroup } from '@/features/smae/types'
 
@@ -313,12 +320,6 @@ function MealManager({
   )
 }
 
-const normalizeSearch = (value: string) =>
-  value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase()
-
 type CatalogModalProps = {
   visible: boolean
   close: () => void
@@ -328,21 +329,69 @@ type CatalogModalProps = {
 
 function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps) {
   const sheetRef = useRef<BottomSheetModal>(null)
+  const listRef = useRef<BottomSheetFlatListMethods>(null)
   const [query, setQuery] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | 'all'>('all')
-  const normalizedQuery = normalizeSearch(query.trim())
-  const filteredCatalog = useMemo(
-    () =>
-      CATALOG.filter(
-        (food) =>
-          (selectedGroup === 'all' || food.group === selectedGroup) &&
-          (!normalizedQuery || normalizeSearch(food.name).includes(normalizedQuery)),
-      ),
+  const deferredQuery = useDeferredValue(query)
+  const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | null>(null)
+  const normalizedQuery = normalizeCatalogSearch(deferredQuery.trim())
+  const isBrowsingGroups = !normalizedQuery && !selectedGroup
+  const filteredCatalog = useMemo(() => {
+    if (!normalizedQuery) return selectedGroup ? CATALOG_BY_GROUP[selectedGroup] : []
+
+    return CATALOG_SEARCH_INDEX.filter(
+      ({ food, searchText }) =>
+        (!selectedGroup || food.group === selectedGroup) && searchText.includes(normalizedQuery),
+    ).map(({ food }) => food)
+  }, [
+    normalizedQuery,
+    selectedGroup,
+  ])
+  const choose = useCallback(
+    (food: Food) =>
+      Alert.alert(food.name, '¿En qué comida registras 1 equivalente?', [
+        ...meals.map((meal) => ({
+          text: meal.name,
+          onPress: () =>
+            addExternal({
+              name: food.name,
+              mode: 'macros',
+              mealId: meal.id,
+              referencePortion: 1,
+              eatenPortion: 1,
+              macro: food.perExchange,
+            }),
+        })),
+        {
+          text: 'Cancelar',
+          style: 'cancel' as const,
+        },
+      ]),
     [
-      normalizedQuery,
-      selectedGroup,
+      addExternal,
+      meals,
     ],
   )
+  const renderFood = useCallback(
+    ({ item }: { item: Food }) => <CatalogFoodRow food={item} onChoose={choose} />,
+    [
+      choose,
+    ],
+  )
+  const resetToTop = useCallback(() => {
+    requestAnimationFrame(() =>
+      listRef.current?.scrollToOffset({
+        offset: 0,
+        animated: false,
+      }),
+    )
+  }, [])
+  const closeCatalog = useCallback(() => {
+    setQuery('')
+    setSelectedGroup(null)
+    close()
+  }, [
+    close,
+  ])
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />
@@ -358,26 +407,6 @@ function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps)
     visible,
   ])
 
-  const choose = (food: Food) =>
-    Alert.alert(food.name, '¿En qué comida registras 1 equivalente?', [
-      ...meals.map((meal: Meal) => ({
-        text: meal.name,
-        onPress: () =>
-          addExternal({
-            name: food.name,
-            mode: 'macros',
-            mealId: meal.id,
-            referencePortion: 1,
-            eatenPortion: 1,
-            macro: food.perExchange,
-          }),
-      })),
-      {
-        text: 'Cancelar',
-        style: 'cancel',
-      },
-    ])
-
   if (!visible) return null
 
   return (
@@ -392,7 +421,7 @@ function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps)
       keyboardBehavior='interactive'
       keyboardBlurBehavior='restore'
       backdropComponent={renderBackdrop}
-      onDismiss={close}
+      onDismiss={closeCatalog}
       backgroundStyle={{
         backgroundColor: '#f7f7f5',
       }}
@@ -401,11 +430,14 @@ function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps)
       }}
     >
       <BottomSheetFlatList
+        ref={listRef}
         data={filteredCatalog}
         keyExtractor={(food: Food) => food.id}
-        initialNumToRender={20}
-        maxToRenderPerBatch={20}
-        windowSize={10}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        removeClippedSubviews
         keyboardShouldPersistTaps='handled'
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
@@ -418,82 +450,106 @@ function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps)
               <View>
                 <Text className='font-geist-mono text-xl text-zinc-950'>Catálogo SMAE</Text>
                 <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                  {filteredCatalog.length} alimentos
+                  {isBrowsingGroups
+                    ? 'Elige un grupo o busca un alimento'
+                    : `${filteredCatalog.length} alimentos`}
                 </Text>
               </View>
-              <TouchableOpacity onPress={close} className='p-1'>
+              <TouchableOpacity onPress={closeCatalog} className='p-1'>
                 <Feather name='x' size={22} />
               </TouchableOpacity>
             </View>
             <BottomSheetTextInput
               value={query}
-              onChangeText={setQuery}
+              onChangeText={(value) => {
+                setQuery(value)
+                resetToTop()
+              }}
               placeholder='Buscar alimento'
               placeholderTextColor='#a1a1aa'
               className='border border-zinc-200 bg-white rounded-full px-4 py-3 font-geist-mono text-zinc-950'
             />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerClassName='gap-2 py-4'
-            >
-              <CatalogFilter
-                label='Todos'
-                selected={selectedGroup === 'all'}
-                onPress={() => setSelectedGroup('all')}
-              />
-              {GROUPS.map((group) => (
-                <CatalogFilter
-                  key={group}
-                  label={group}
-                  selected={selectedGroup === group}
-                  onPress={() => setSelectedGroup(group)}
-                />
-              ))}
-            </ScrollView>
+            {!isBrowsingGroups && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSelectedGroup(null)
+                  setQuery('')
+                  resetToTop()
+                }}
+                className='self-start rounded-full px-3 py-2 bg-white border border-zinc-200 mt-3 mb-1'
+              >
+                <Text className='font-geist-mono text-xs text-zinc-600'>← Grupos</Text>
+              </TouchableOpacity>
+            )}
+            {isBrowsingGroups && (
+              <View className='flex-row flex-wrap gap-2 py-4'>
+                {GROUPS.map((group) => (
+                  <CatalogGroup
+                    key={group}
+                    group={group}
+                    count={CATALOG_BY_GROUP[group].length}
+                    onPress={() => {
+                      setSelectedGroup(group)
+                      resetToTop()
+                    }}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         }
         ListEmptyComponent={
-          <Text className='font-geist-mono text-base text-zinc-500 py-6'>
-            No encontramos alimentos con esa búsqueda.
-          </Text>
+          isBrowsingGroups ? null : (
+            <Text className='font-geist-mono text-base text-zinc-500 py-6'>
+              No encontramos alimentos con esa búsqueda.
+            </Text>
+          )
         }
-        renderItem={({ item: food }: { item: Food }) => (
-          <TouchableOpacity
-            onPress={() => choose(food)}
-            className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
-          >
-            <View className='flex-1 pr-3'>
-              <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
-              <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                {food.group} · {food.portion}
-              </Text>
-            </View>
-            <Feather name='plus' size={17} color='#52525b' />
-          </TouchableOpacity>
-        )}
+        renderItem={renderFood}
       />
     </BottomSheetModal>
   )
 }
 
-function CatalogFilter({
-  label,
-  selected,
+function CatalogGroup({
+  group,
+  count,
   onPress,
 }: {
-  label: string
-  selected: boolean
+  group: SmaeGroup
+  count: number
   onPress: () => void
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`rounded-full px-3 py-2 ${selected ? 'bg-zinc-950' : 'bg-white border border-zinc-200'}`}
+      className='w-[48%] bg-white border border-zinc-200 rounded-2xl p-3'
     >
-      <Text className={`font-geist-mono text-xs ${selected ? 'text-white' : 'text-zinc-600'}`}>
-        {label}
-      </Text>
+      <Text className='font-geist-mono text-sm text-zinc-900'>{group}</Text>
+      <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>{count} alimentos</Text>
     </TouchableOpacity>
   )
 }
+
+const CatalogFoodRow = memo(function CatalogFoodRow({
+  food,
+  onChoose,
+}: {
+  food: Food
+  onChoose: (food: Food) => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => onChoose(food)}
+      className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
+    >
+      <View className='flex-1 pr-3'>
+        <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
+        <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+          {food.group} · {food.portion}
+        </Text>
+      </View>
+      <Feather name='plus' size={17} color='#52525b' />
+    </TouchableOpacity>
+  )
+})

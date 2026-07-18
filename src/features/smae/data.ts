@@ -93,3 +93,22 @@ export const CATALOG: Food[] = (catalog as CatalogFood[]).map((food) => ({
   ...food,
   perExchange: GROUP_MACROS[food.group],
 }))
+
+export const normalizeCatalogSearch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+
+export const CATALOG_BY_GROUP = GROUPS.reduce<Record<SmaeGroup, Food[]>>(
+  (groups, group) => {
+    groups[group] = CATALOG.filter((food) => food.group === group)
+    return groups
+  },
+  {} as Record<SmaeGroup, Food[]>,
+)
+
+export const CATALOG_SEARCH_INDEX = CATALOG.map((food) => ({
+  food,
+  searchText: normalizeCatalogSearch(`${food.name} ${food.group} ${food.portion}`),
+}))
