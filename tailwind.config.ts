@@ -17,6 +17,12 @@ const config: Config = {
         'geist-mono': [
           AppFontNames.GeistMono_400Regular,
         ],
+        'geist-mono-thin': [
+          AppFontNames.GeistMono_100Thin,
+        ],
+        'geist-mono-extralight': [
+          AppFontNames.GeistMono_200ExtraLight,
+        ],
         'geist-mono-light': [
           AppFontNames.GeistMono_300Light,
         ],
