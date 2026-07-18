@@ -113,11 +113,11 @@ export default function HomeTab() {
     <View className='mb-4'>
       <View className='flex-row justify-between'>
         <View className='flex-row items-center'>
-          <Text className='text-zinc-600 font-geist-mono text-sm'>{label}</Text>
-          <Text className='text-zinc-950 font-geist-mono text-sm'> · </Text>
-          <Text className='text-zinc-600 font-geist-mono-light text-xs'>{units}</Text>
+          <Text className='text-zinc-600 font-geist-mono text-base'>{label}</Text>
+          <Text className='text-zinc-950 font-geist-mono text-base'> · </Text>
+          <Text className='text-zinc-600 font-geist-mono-light text-sm'>{units}</Text>
         </View>
-        <Text className='text-zinc-900 font-geist-mono text-sm'>
+        <Text className='text-zinc-900 font-geist-mono text-base'>
           {n(used)} / {n(target)}
         </Text>
       </View>
@@ -140,10 +140,10 @@ export default function HomeTab() {
         'right',
       ]}
     >
-      <ScrollView contentContainerClassName='px-6 pt-4' showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerClassName='px-6 pt-4 pb-4' showsVerticalScrollIndicator={false}>
         <View className='flex-row justify-between items-start mb-4'>
           <View>
-            <Text className='font-geist-mono text-xs tracking-widest text-zinc-500'>
+            <Text className='font-geist-mono text-sm tracking-widest text-zinc-500'>
               SMAE / HOY
             </Text>
             <Text className='font-geist-mono text-3xl text-zinc-950 mt-1'>Tu día</Text>
@@ -153,45 +153,43 @@ export default function HomeTab() {
             className='bg-zinc-950 rounded-full px-4 py-3 flex-row gap-2'
           >
             <Feather name='plus' color='white' size={16} />
-            <Text className='text-white font-geist-mono text-xs'>Registrar</Text>
+            <Text className='text-white font-geist-mono text-sm'>Registrar</Text>
           </TouchableOpacity>
         </View>
         <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
-          <Text className='font-geist-mono text-base text-zinc-950 mb-5 tracking-widest'>
+          <Text className='font-geist-mono text-lg text-zinc-950 mb-5 tracking-widest'>
             PROGRESO DEL DÍA
           </Text>
           {progress('Energía', 'kcal', consumed.kcal, plan.kcal)}
           {progress('Proteína', 'g', consumed.protein, plan.protein)}
           {progress('Carbohidratos', 'g', consumed.carbs, plan.carbs)}
           {progress('Grasa', 'g', consumed.fat, plan.fat)}
-          <Text className='font-geist-mono text-xs text-zinc-400 mt-2'>
+          <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
             Meta basada en tus equivalentes configurados.
           </Text>
         </View>
         <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
           <View className='flex-row justify-between items-center mb-2'>
-            <Text className='font-geist-mono text-base text-zinc-950 tracking-widest'>
-              REGISTRO
-            </Text>
-            <Text className='font-geist-mono text-xs text-zinc-400'>
+            <Text className='font-geist-mono text-lg text-zinc-950 tracking-widest'>REGISTRO</Text>
+            <Text className='font-geist-mono text-sm text-zinc-400'>
               {externalFoods.length} alimentos
             </Text>
           </View>
           {externalFoods.length === 0 ? (
-            <Text className='font-geist-mono text-sm text-zinc-500'>
+            <Text className='font-geist-mono text-base text-zinc-500'>
               Aún no registras alimentos. Añade un alimento SMAE desde tu plan o uno externo aquí.
             </Text>
           ) : (
             externalFoods.map((f) => (
               <View key={f.id} className='py-3 border-t border-zinc-100 flex-row justify-between'>
                 <View>
-                  <Text className='font-geist-mono text-sm text-zinc-900'>{f.name}</Text>
-                  <Text className='font-geist-mono text-xs text-zinc-500'>
+                  <Text className='font-geist-mono text-base text-zinc-900'>{f.name}</Text>
+                  <Text className='font-geist-mono text-sm text-zinc-500'>
                     {meals.find((m) => m.id === f.mealId)?.name} ·{' '}
                     {f.mode === 'macros' ? 'macros completos' : 'solo kcal'}
                   </Text>
                 </View>
-                <Text className='font-geist-mono text-sm'>
+                <Text className='font-geist-mono text-base'>
                   {n((f.macro.kcal * f.eatenPortion) / f.referencePortion)} kcal
                 </Text>
               </View>
@@ -199,21 +197,21 @@ export default function HomeTab() {
           )}
         </View>
         <View className='bg-zinc-950 rounded-3xl p-5'>
-          <Text className='text-white font-geist-mono text-base tracking-widest'>
+          <Text className='text-white font-geist-mono text-lg tracking-widest'>
             REAJUSTE DINÁMICO
           </Text>
-          <Text className='text-zinc-400 font-geist-mono text-sm mt-2'>
+          <Text className='text-zinc-400 font-geist-mono text-base mt-2'>
             Compensa kcal no asignadas con cereales sin grasa y grasas sin proteína. Tus grupos base
             no se modifican.
           </Text>
           {adjustment?.status === 'pending' ? (
             <View className='mt-4'>
-              <Text className='text-white font-geist-mono text-xs'>
+              <Text className='text-white font-geist-mono text-base'>
                 Propuesta: {n(-(adjustment.delta['Cereales · sin grasa'] ?? 0))} cereales y{' '}
                 {n(-(adjustment.delta['Grasas · sin proteína'] ?? 0))} grasas
               </Text>
               {adjustment.remainingKcal > 0 && (
-                <Text className='text-amber-300 font-geist-mono text-xs mt-2'>
+                <Text className='text-amber-300 font-geist-mono text-sm mt-2'>
                   Quedan {n(adjustment.remainingKcal)} kcal sin compensar.
                 </Text>
               )}
@@ -221,7 +219,7 @@ export default function HomeTab() {
                 onPress={applyAdjustment}
                 className='bg-white rounded-full p-3 mt-4'
               >
-                <Text className='text-zinc-950 font-geist-mono text-center text-xs'>
+                <Text className='text-zinc-950 font-geist-mono text-center text-base'>
                   Aplicar propuesta
                 </Text>
               </TouchableOpacity>
@@ -231,7 +229,9 @@ export default function HomeTab() {
               onPress={proposeAdjustment}
               className='border border-zinc-600 rounded-full p-3 mt-4'
             >
-              <Text className='text-white font-geist-mono text-center text-sm'>Ver propuesta</Text>
+              <Text className='text-white font-geist-mono text-center text-base'>
+                Ver propuesta
+              </Text>
             </TouchableOpacity>
           )}
         </View>

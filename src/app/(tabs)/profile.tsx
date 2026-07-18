@@ -70,7 +70,7 @@ export default function PlanTab() {
         <View className='px-6 pt-4'>
           <View className='flex-row justify-between items-start'>
             <View>
-              <Text className='font-geist-mono text-xs tracking-widest text-zinc-500'>
+              <Text className='font-geist-mono text-sm tracking-widest text-zinc-500'>
                 CONFIGURACIÓN
               </Text>
               <Text className='font-geist-mono text-3xl text-zinc-950 mt-1'>Equivalentes</Text>
@@ -80,11 +80,12 @@ export default function PlanTab() {
               className='border border-zinc-300 rounded-full px-3 py-2 flex-row gap-2'
             >
               <Feather name='edit-3' size={14} color='#3f3f46' />
-              <Text className='font-geist-mono text-xs text-zinc-800'>Editar comidas</Text>
+              <Text className='font-geist-mono text-sm text-zinc-800'>Editar comidas</Text>
             </TouchableOpacity>
           </View>
-          <Text className='font-geist-mono-light text-sm text-zinc-500 mt-4 mb-5'>
-            Selecciona una comida y asigna sus equivalentes. El resumen se actualiza al instante.
+          <Text className='font-geist-mono text-base text-zinc-500 mt-4 mb-5'>
+            Selecciona una comida y asigna sus equivalentes.{'\n'}El resumen se actualiza al
+            instante.
           </Text>
         </View>
 
@@ -100,7 +101,7 @@ export default function PlanTab() {
               className={`rounded-full px-4 py-2.5 ${meal.id === activeMeal.id ? 'bg-zinc-950' : 'bg-white border border-zinc-200'}`}
             >
               <Text
-                className={`font-geist-mono text-xs ${meal.id === activeMeal.id ? 'text-white' : 'text-zinc-600'}`}
+                className={`font-geist-mono text-sm ${meal.id === activeMeal.id ? 'text-white' : 'text-zinc-600'}`}
               >
                 {meal.name}
               </Text>
@@ -110,30 +111,28 @@ export default function PlanTab() {
 
         <View className='mx-5 bg-white rounded-3xl px-5 pt-6 pb-1 border border-zinc-100'>
           <View className='flex-row justify-between items-baseline mb-3'>
-            <Text className='font-geist-mono-medium tracking-widest text-base text-zinc-950'>
+            <Text className='font-geist-mono-medium tracking-widest text-lg text-zinc-950'>
               {activeMeal.name.toUpperCase()}
             </Text>
-            <Text className='font-geist-mono text-xs text-zinc-400'>equivalentes</Text>
+            <Text className='font-geist-mono text-sm text-zinc-400'>equivalentes</Text>
           </View>
           {GROUPS.map((group) => (
             <View
               key={group}
               className='flex-row items-center justify-between py-2 border-t border-zinc-100'
             >
-              <Text className='font-geist-mono-light text-xs text-zinc-800 flex-1 pr-2'>
-                {group}
-              </Text>
+              <Text className='font-geist-mono text-base text-zinc-800 flex-1 pr-2'>{group}</Text>
               <View className='flex-row items-center gap-1'>
                 <TouchableOpacity
                   accessibilityLabel={`Restar ${group}`}
                   onPress={() =>
                     setExchange(activeMeal.id, group, (activeMeal.exchanges[group] ?? 0) - 0.5)
                   }
-                  className='bg-zinc-100 w-8 h-8 rounded-full items-center justify-center'
+                  className='bg-zinc-100 w-10 h-10 rounded-full items-center justify-center'
                 >
                   <Feather name='minus' size={14} />
                 </TouchableOpacity>
-                <Text className='font-geist-mono text-center text-sm w-14 px-3 py-3 rounded-full text-zinc-950'>
+                <Text className='font-geist-mono text-center text-base w-14 px-3 py-3 rounded-full text-zinc-950'>
                   {activeMeal.exchanges[group] ?? 0}
                 </Text>
                 <TouchableOpacity
@@ -141,7 +140,7 @@ export default function PlanTab() {
                   onPress={() =>
                     setExchange(activeMeal.id, group, (activeMeal.exchanges[group] ?? 0) + 0.5)
                   }
-                  className='bg-zinc-950 w-8 h-8 rounded-full items-center justify-center'
+                  className='bg-zinc-950 w-10 h-10 rounded-full items-center justify-center'
                 >
                   <Feather name='plus' color='white' size={14} />
                 </TouchableOpacity>
@@ -151,19 +150,19 @@ export default function PlanTab() {
         </View>
 
         <View className='mx-5 mt-4 bg-zinc-950 rounded-3xl p-5'>
-          <Text className='font-geist-mono text-xs tracking-widest text-zinc-400'>
+          <Text className='font-geist-mono text-lg tracking-widest text-zinc-400'>
             RESUMEN TOTAL
           </Text>
           <View className='mt-4'>
             {meals.map((meal) => (
               <View key={meal.id} className='pb-4 mb-4 border-b border-zinc-700'>
-                <Text className='font-geist-mono text-sm text-white'>{meal.name}</Text>
+                <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
                 <MacroLine values={macroFor(meal)} light />
               </View>
             ))}
           </View>
           <View>
-            <Text className='font-geist-mono text-sm text-white'>Total del día</Text>
+            <Text className='font-geist-mono text-base text-white'>Total del día</Text>
             <MacroLine values={dayTotal} light />
           </View>
         </View>
@@ -172,8 +171,8 @@ export default function PlanTab() {
           className='mx-5 mt-4 p-4 bg-white border border-zinc-200 rounded-2xl flex-row justify-between items-center'
         >
           <View>
-            <Text className='font-geist-mono text-sm text-zinc-900'>Catálogo SMAE</Text>
-            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
+            <Text className='font-geist-mono text-lg text-zinc-900'>Catálogo SMAE</Text>
+            <Text className='font-geist-mono text-base text-zinc-500 mt-1'>
               Registrar un alimento por equivalente
             </Text>
           </View>
@@ -207,13 +206,13 @@ function MacroLine({ values, light = false }: { values: Macro; light?: boolean }
   const style = light ? 'text-zinc-300' : 'text-zinc-600'
   return (
     <View className='flex-row flex-wrap items-center mt-2'>
-      <Text className={`font-geist-mono text-xs ${style}`}>{number(values.kcal)} kcal</Text>
-      <Text className={`font-geist-mono text-xs mx-2 ${style}`}>|</Text>
-      <Text className={`font-geist-mono text-xs ${style}`}>P {number(values.protein)}g</Text>
-      <Text className={`font-geist-mono text-xs mx-2 ${style}`}>|</Text>
-      <Text className={`font-geist-mono text-xs ${style}`}>C {number(values.carbs)}g</Text>
-      <Text className={`font-geist-mono text-xs mx-2 ${style}`}>|</Text>
-      <Text className={`font-geist-mono text-xs ${style}`}>G {number(values.fat)}g</Text>
+      <Text className={`font-geist-mono text-sm ${style}`}>{number(values.kcal)} kcal</Text>
+      <Text className={`font-geist-mono text-sm mx-2 ${style}`}>|</Text>
+      <Text className={`font-geist-mono text-sm ${style}`}>P {number(values.protein)}g</Text>
+      <Text className={`font-geist-mono text-sm mx-2 ${style}`}>|</Text>
+      <Text className={`font-geist-mono text-sm ${style}`}>C {number(values.carbs)}g</Text>
+      <Text className={`font-geist-mono text-sm mx-2 ${style}`}>|</Text>
+      <Text className={`font-geist-mono text-sm ${style}`}>G {number(values.fat)}g</Text>
     </View>
   )
 }
