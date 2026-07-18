@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons'
 import { useMemo, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import Svg, { Circle } from 'react-native-svg'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import { GROUP_MACROS } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
@@ -156,19 +157,42 @@ export default function HomeTab() {
             <Text className='text-white font-geist-mono text-sm'>Registrar</Text>
           </TouchableOpacity>
         </View>
-        <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
-          <Text className='font-geist-mono text-lg text-zinc-950 mb-5 tracking-widest'>
-            PROGRESO DEL DÍA
-          </Text>
-          {progress('Proteína', 'g', consumed.protein, plan.protein)}
-          {progress('Carbohidratos', 'g', consumed.carbs, plan.carbs)}
-          {progress('Grasa', 'g', consumed.fat, plan.fat)}
-          <View className='border-t border-zinc-100 pt-4 mt-1'>
-            {progress('Energía', 'kcal', consumed.kcal, plan.kcal)}
+
+        {false && (
+          <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
+            <Text className='font-geist-mono text-lg text-zinc-950 mb-5 tracking-widest'>
+              PROGRESO DEL DÍA
+            </Text>
+            {progress('Proteína', 'g', consumed.protein, plan.protein)}
+            {progress('Carbohidratos', 'g', consumed.carbs, plan.carbs)}
+            {progress('Grasa', 'g', consumed.fat, plan.fat)}
+            <View className='border-t border-zinc-100 pt-4 mt-1'>
+              {progress('Energía', 'kcal', consumed.kcal, plan.kcal)}
+            </View>
+            <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
+              Meta basada en tus equivalentes configurados.
+            </Text>
           </View>
-          <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
-            Meta basada en tus equivalentes configurados.
-          </Text>
+        )}
+        <View className='h-8' />
+        <View className='flex-col'>
+          <View className='flex-row items-end'>
+            <Text className='font-doto-medium tracking-tighter text-8xl text-zinc-950'>
+              {consumed.kcal}
+            </Text>
+            <Text className='font-geist-mono-extralight tracking-tighter text-4xl text-zinc-500 pb-5'>
+              /{plan.kcal}
+            </Text>
+          </View>
+          <Text className='font-geist-mono-light text-2xl text-zinc-400 -mt-4'>KCAL</Text>
+        </View>
+        <View className='flex-row gap-1 mt-4 mb-1'>
+          <MacroProgressCard label='Proteína' used={consumed.protein} target={plan.protein} />
+          <MacroProgressCard label='Carbohidratos' used={consumed.carbs} target={plan.carbs} />
+        </View>
+        <View className='flex-row gap-1 mb-4'>
+          <MacroProgressCard label='Grasa' used={consumed.fat} target={plan.fat} />
+          <View className='flex-1 min-w-0 p-4' />
         </View>
         <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
           <View className='flex-row justify-between items-center mb-2'>
@@ -249,6 +273,71 @@ export default function HomeTab() {
         save={save}
       />
     </SafeAreaView>
+  )
+}
+
+function MacroProgressCard({
+  label,
+  used,
+  target,
+}: {
+  label: string
+  used: number
+  target: number
+}) {
+  const size = 36
+  const strokeWidth = 4
+  const radius = (size - strokeWidth) / 2
+  const circumference = 2 * Math.PI * radius
+  const progress = Math.min(1, target ? used / target : 0)
+  const dashOffset = circumference * (1 - progress)
+
+  return (
+    <View className='flex-1 min-w-0 bg-white border border-zinc-100 rounded-3xl p-4'>
+      <Text
+        className='font-geist-mono tracking-widest text-base text-zinc-950 text-left'
+        numberOfLines={1}
+      >
+        {label.toLocaleUpperCase()}
+      </Text>
+      <View className='flex-row justify-between mt-1 items-center'>
+        <View className='gap-1'>
+          <View className='flex-row items-center'>
+            <Text className='font-geist-mono text-lg text-zinc-950 mt-3 leading-none'>
+              {n(used)}
+            </Text>
+            <Text className='font-geist-mono-light text-base text-zinc-600 mt-3 leading-none'>
+              /{n(target)}
+            </Text>
+          </View>
+          <Text className='font-geist-mono text-sm text-zinc-400 leading-none'>g</Text>
+        </View>
+        <View className='mt-3 items-center justify-center'>
+          <Svg width={size} height={size}>
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke='#f4f4f5'
+              strokeWidth={strokeWidth}
+              fill='none'
+            />
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke='#18181b'
+              strokeWidth={strokeWidth}
+              fill='none'
+              strokeLinecap='round'
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={dashOffset}
+              transform={`rotate(-90 ${size / 2} ${size / 2})`}
+            />
+          </Svg>
+        </View>
+      </View>
+    </View>
   )
 }
 
