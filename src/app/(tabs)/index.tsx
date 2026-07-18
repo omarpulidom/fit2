@@ -160,10 +160,12 @@ export default function HomeTab() {
           <Text className='font-geist-mono text-lg text-zinc-950 mb-5 tracking-widest'>
             PROGRESO DEL DÍA
           </Text>
-          {progress('Energía', 'kcal', consumed.kcal, plan.kcal)}
           {progress('Proteína', 'g', consumed.protein, plan.protein)}
           {progress('Carbohidratos', 'g', consumed.carbs, plan.carbs)}
           {progress('Grasa', 'g', consumed.fat, plan.fat)}
+          <View className='border-t border-zinc-100 pt-4 mt-1'>
+            {progress('Energía', 'kcal', consumed.kcal, plan.kcal)}
+          </View>
           <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
             Meta basada en tus equivalentes configurados.
           </Text>
