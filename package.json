@@ -14,6 +14,7 @@
     "build:prev:ios": "eas build -e preview -p ios --local --non-interactive",
     "build:prod:ios": "eas build -e production -p ios --local --non-interactive",
     "prebuild": "expo prebuild",
+    "catalog:generate": "bun scripts/generate_smae_catalog.ts",
     "bump": "bun scripts/bump_version.ts",
     "ts": "tsc --noEmit"
   },
@@ -70,6 +71,7 @@
     "eas-cli": "^16.28.0",
     "tailwindcss": "^3.4.0",
     "typescript": "~5.9.2",
+    "xlsx": "^0.18.5",
     "yargs": "^18.0.0"
   },
   "expo": {

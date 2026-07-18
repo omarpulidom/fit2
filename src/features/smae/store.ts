@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { zustandMMKVStorage } from '@/lib/mmkv'
-import { CATALOG, GROUP_MACROS } from './data'
-import type { Meal, SmaeState } from './types'
+import { GROUP_MACROS } from './data'
+import type { SmaeState } from './types'
 
 const mealNames = [
   'Desayuno',
@@ -17,7 +17,6 @@ const initial = () => ({
     name,
     exchanges: {},
   })),
-  catalog: CATALOG,
   externalFoods: [],
 })
 const id = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -183,10 +182,12 @@ export const useSmaeStore = create<SmaeState>()(
     }),
     {
       name: 'smae-v1',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => zustandMMKVStorage),
       migrate: (persistedState: unknown) => {
-        const state = persistedState as Partial<SmaeState>
+        const { catalog: _catalog, ...state } = persistedState as Partial<SmaeState> & {
+          catalog?: unknown
+        }
         if (!state.meals) return state as SmaeState
         const renamedMeals = state.meals.map((meal) => ({
           ...meal,

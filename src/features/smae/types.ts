@@ -9,21 +9,27 @@ export type SmaeGroup =
   | 'Verduras'
   | 'Frutas'
   | 'Cereales · sin grasa'
+  | 'Cereales · con grasa'
   | 'Leguminosas'
   | 'AOA · muy bajo aporte de grasa'
   | 'AOA · bajo aporte de grasa'
   | 'AOA · moderado aporte de grasa'
+  | 'AOA · alto aporte de grasa'
   | 'Leche · descremada'
   | 'Leche · semidescremada'
   | 'Leche · entera'
   | 'Grasas · sin proteína'
   | 'Grasas · con proteína'
 
-export type Food = {
+export type CatalogFood = {
   id: string
   name: string
   group: SmaeGroup
+  quantity: number
+  unit: string
   portion: string
+}
+export type Food = CatalogFood & {
   perExchange: Macro
 }
 export type Meal = {
@@ -53,7 +59,6 @@ export type Adjustment = {
 
 export type SmaeState = {
   meals: Meal[]
-  catalog: Food[]
   externalFoods: ExternalFood[]
   adjustment?: Adjustment
   setExchange: (mealId: string, group: SmaeGroup, value: number) => void
