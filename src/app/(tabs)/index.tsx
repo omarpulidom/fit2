@@ -1,12 +1,18 @@
 import { Feather } from '@expo/vector-icons'
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Circle } from 'react-native-svg'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
-import { GROUP_MACROS } from '@/features/smae/data'
+import {
+  CATALOG_BY_GROUP,
+  CATALOG_SEARCH_INDEX,
+  GROUP_MACROS,
+  GROUPS,
+  normalizeCatalogSearch,
+} from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
-import type { Macro } from '@/features/smae/types'
+import type { Food, Macro, SmaeGroup } from '@/features/smae/types'
 
 const sum = (items: Macro[]) =>
   items.reduce(
@@ -29,6 +35,7 @@ export default function HomeTab() {
   const { meals, externalFoods, adjustment, addExternal, proposeAdjustment, applyAdjustment } =
     useSmaeStore()
   const [modal, setModal] = useState(false)
+  const [source, setSource] = useState<'smae' | 'external'>('smae')
   const [mode, setMode] = useState<'macros' | 'calories'>('macros')
   const [form, setForm] = useState({
     name: '',
@@ -84,11 +91,16 @@ export default function HomeTab() {
       externalFoods,
     ],
   )
-  const save = () => {
+  const closeModal = () => {
+    setModal(false)
+    setSource('smae')
+  }
+  const saveExternal = () => {
     if (!form.name.trim() || !Number(form.kcal) || !Number(form.ref) || !Number(form.eaten))
       return Alert.alert('Completa nombre, calorías y porciones.')
     addExternal({
       name: form.name.trim(),
+      source: 'external',
       mode,
       mealId: form.mealId,
       referencePortion: Number(form.ref),
@@ -100,7 +112,7 @@ export default function HomeTab() {
         fat: mode === 'macros' ? Number(form.fat) : 0,
       },
     })
-    setModal(false)
+    closeModal()
     setForm({
       ...form,
       name: '',
@@ -109,6 +121,20 @@ export default function HomeTab() {
       carbs: '',
       fat: '',
     })
+  }
+  const saveSmae = (food: Food, equivalents: number, mealId: string) => {
+    if (!mealId) return Alert.alert('Selecciona una comida.')
+    addExternal({
+      name: food.name,
+      source: 'smae',
+      smaeGroup: food.group,
+      mode: 'macros',
+      mealId,
+      referencePortion: 1,
+      eatenPortion: equivalents,
+      macro: food.perExchange,
+    })
+    closeModal()
   }
   const progress = (label: string, units: string, used: number, target: number) => (
     <View className='mb-4'>
@@ -212,7 +238,11 @@ export default function HomeTab() {
                   <Text className='font-geist-mono text-base text-zinc-900'>{f.name}</Text>
                   <Text className='font-geist-mono text-sm text-zinc-500'>
                     {meals.find((m) => m.id === f.mealId)?.name} ·{' '}
-                    {f.mode === 'macros' ? 'macros completos' : 'solo kcal'}
+                    {f.source === 'smae'
+                      ? f.smaeGroup
+                      : f.mode === 'macros'
+                        ? 'macros completos'
+                        : 'solo kcal'}
                   </Text>
                 </View>
                 <Text className='font-geist-mono text-base'>
@@ -264,13 +294,16 @@ export default function HomeTab() {
       </ScrollView>
       <FoodModal
         visible={modal}
-        close={() => setModal(false)}
+        close={closeModal}
+        source={source}
+        setSource={setSource}
         mode={mode}
         setMode={setMode}
         form={form}
         setForm={setForm}
         meals={meals}
-        save={save}
+        saveExternal={saveExternal}
+        saveSmae={saveSmae}
       />
     </SafeAreaView>
   )
@@ -341,8 +374,83 @@ function MacroProgressCard({
   )
 }
 
-function FoodModal({ visible, close, mode, setMode, form, setForm, meals, save }: any) {
-  const field = (key: string, label: string) => (
+type ExternalFoodForm = {
+  name: string
+  kcal: string
+  protein: string
+  carbs: string
+  fat: string
+  ref: string
+  eaten: string
+  mealId: string
+}
+
+type FoodModalProps = {
+  visible: boolean
+  close: () => void
+  source: 'smae' | 'external'
+  setSource: (source: 'smae' | 'external') => void
+  mode: 'macros' | 'calories'
+  setMode: (mode: 'macros' | 'calories') => void
+  form: ExternalFoodForm
+  setForm: (form: ExternalFoodForm) => void
+  meals: {
+    id: string
+    name: string
+  }[]
+  saveExternal: () => void
+  saveSmae: (food: Food, equivalents: number, mealId: string) => void
+}
+
+function FoodModal({
+  visible,
+  close,
+  source,
+  setSource,
+  mode,
+  setMode,
+  form,
+  setForm,
+  meals,
+  saveExternal,
+  saveSmae,
+}: FoodModalProps) {
+  const [query, setQuery] = useState('')
+  const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | null>(null)
+  const [selectedFood, setSelectedFood] = useState<Food | null>(null)
+  const [equivalents, setEquivalents] = useState(1)
+  const deferredQuery = useDeferredValue(query)
+  const normalizedQuery = normalizeCatalogSearch(deferredQuery.trim())
+  const isBrowsingGroups = !normalizedQuery && !selectedGroup
+  useEffect(() => {
+    if (visible) return
+    setQuery('')
+    setSelectedGroup(null)
+    setSelectedFood(null)
+    setEquivalents(1)
+  }, [
+    visible,
+  ])
+  const foods = useMemo(() => {
+    if (!normalizedQuery) return selectedGroup ? CATALOG_BY_GROUP[selectedGroup] : []
+
+    return CATALOG_SEARCH_INDEX.filter(
+      ({ food, searchText }) =>
+        (!selectedGroup || food.group === selectedGroup) && searchText.includes(normalizedQuery),
+    ).map(({ food }) => food)
+  }, [
+    normalizedQuery,
+    selectedGroup,
+  ])
+  const selectSource = (value: 'smae' | 'external') => {
+    setSource(value)
+    if (value === 'external') {
+      setQuery('')
+      setSelectedGroup(null)
+      setSelectedFood(null)
+    }
+  }
+  const field = (key: keyof ExternalFoodForm, label: string) => (
     <View className='mb-3'>
       <Text className='font-geist-mono text-xs text-zinc-600 mb-1'>{label}</Text>
       <TextInput
@@ -363,74 +471,239 @@ function FoodModal({ visible, close, mode, setMode, form, setForm, meals, save }
   return (
     <AppBottomSheet visible={visible} onDismiss={close} maxHeight={0.92}>
       <View className='flex-row justify-between mb-5'>
-        <Text className='font-geist-mono text-xl'>Alimento externo</Text>
+        <Text className='font-geist-mono text-xl'>Registrar alimento</Text>
         <TouchableOpacity onPress={close}>
           <Feather name='x' size={22} />
         </TouchableOpacity>
       </View>
-      <View className='flex-row mb-4 gap-2'>
+      <View className='flex-row mb-5 gap-2'>
         <TouchableOpacity
-          onPress={() => setMode('macros')}
-          className={`px-3 py-2 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+          onPress={() => selectSource('smae')}
+          className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
         >
           <Text
-            className={`font-geist-mono text-xs ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
+            className={`font-geist-mono text-center text-xs ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
           >
-            Completa
+            SMAE
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => setMode('calories')}
-          className={`px-3 py-2 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+          onPress={() => selectSource('external')}
+          className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
         >
           <Text
-            className={`font-geist-mono text-xs ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
+            className={`font-geist-mono text-center text-xs ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
           >
-            Solo calorías
+            Externo
           </Text>
         </TouchableOpacity>
       </View>
-      {field('name', 'Nombre')}
-      {field('kcal', 'kcal de etiqueta')}
-      {mode === 'macros' && (
-        <View className='flex-row gap-2'>
-          <View className='flex-1'>{field('protein', 'Proteína (g)')}</View>
-          <View className='flex-1'>{field('carbs', 'Carbos (g)')}</View>
-          <View className='flex-1'>{field('fat', 'Grasa (g)')}</View>
-        </View>
-      )}
-      <View className='flex-row gap-3'>
-        <View className='flex-1'>{field('ref', 'Porción etiqueta (g/ml)')}</View>
-        <View className='flex-1'>{field('eaten', 'Porción consumida')}</View>
-      </View>
-      <Text className='font-geist-mono text-xs text-zinc-600 mb-2'>Comida</Text>
-      <View className='flex-row flex-wrap gap-2 mb-5'>
-        {meals.map((m: any) => (
-          <TouchableOpacity
-            key={m.id}
-            onPress={() =>
+
+      {source === 'smae' ? (
+        <>
+          {selectedFood ? (
+            <View className='bg-white rounded-3xl border border-zinc-200 p-4 mb-4'>
+              <TouchableOpacity
+                onPress={() => setSelectedFood(null)}
+                className='self-start rounded-full px-3 py-2 bg-zinc-100 mb-4'
+              >
+                <Text className='font-geist-mono text-xs text-zinc-600'>← Catálogo</Text>
+              </TouchableOpacity>
+              <Text className='font-geist-mono text-lg text-zinc-950'>{selectedFood.name}</Text>
+              <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+                {selectedFood.group} · {selectedFood.portion}
+              </Text>
+              <Text className='font-geist-mono text-xs text-zinc-500 mt-4 mb-2'>Equivalentes</Text>
+              <View className='flex-row items-center gap-2'>
+                <TouchableOpacity
+                  onPress={() => setEquivalents((value) => Math.max(0.5, value - 0.5))}
+                  className='bg-zinc-100 w-11 h-11 rounded-full items-center justify-center'
+                >
+                  <Feather name='minus' size={14} />
+                </TouchableOpacity>
+                <Text className='font-geist-mono text-center text-lg w-14 text-zinc-950'>
+                  {equivalents}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setEquivalents((value) => value + 0.5)}
+                  className='bg-zinc-950 w-11 h-11 rounded-full items-center justify-center'
+                >
+                  <Feather name='plus' color='white' size={14} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder='Buscar alimento'
+                placeholderTextColor='#a1a1aa'
+                className='border border-zinc-200 bg-white rounded-full px-4 py-3 font-geist-mono text-zinc-950 mb-3'
+              />
+              {!isBrowsingGroups && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setQuery('')
+                    setSelectedGroup(null)
+                  }}
+                  className='self-start rounded-full px-3 py-2 bg-white border border-zinc-200 mb-3'
+                >
+                  <Text className='font-geist-mono text-xs text-zinc-600'>← Grupos</Text>
+                </TouchableOpacity>
+              )}
+              {isBrowsingGroups ? (
+                <View className='flex-row flex-wrap gap-2 mb-4'>
+                  {GROUPS.map((group) => (
+                    <TouchableOpacity
+                      key={group}
+                      onPress={() => setSelectedGroup(group)}
+                      className='w-[48%] bg-white border border-zinc-200 rounded-2xl p-3'
+                    >
+                      <Text className='font-geist-mono text-sm text-zinc-900'>{group}</Text>
+                      <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
+                        {CATALOG_BY_GROUP[group].length} alimentos
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : foods.length ? (
+                foods.map((food) => (
+                  <TouchableOpacity
+                    key={food.id}
+                    onPress={() => {
+                      setSelectedFood(food)
+                      setEquivalents(1)
+                    }}
+                    className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
+                  >
+                    <View className='flex-1 pr-3'>
+                      <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
+                      <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+                        {food.group} · {food.portion}
+                      </Text>
+                    </View>
+                    <Feather name='plus' size={17} color='#52525b' />
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <Text className='font-geist-mono text-base text-zinc-500 py-6'>
+                  No encontramos alimentos con esa búsqueda.
+                </Text>
+              )}
+            </>
+          )}
+          {selectedFood && (
+            <MealPicker
+              meals={meals}
+              mealId={form.mealId}
+              setMealId={(mealId) =>
+                setForm({
+                  ...form,
+                  mealId,
+                })
+              }
+            />
+          )}
+          {selectedFood && (
+            <TouchableOpacity
+              onPress={() => saveSmae(selectedFood, equivalents, form.mealId)}
+              className='bg-zinc-950 rounded-full p-4'
+            >
+              <Text className='font-geist-mono text-center text-white'>Registrar equivalente</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <>
+          {field('name', 'Nombre')}
+          {field('kcal', 'kcal de etiqueta')}
+          <View className='flex-row mb-4 gap-2'>
+            <TouchableOpacity
+              onPress={() => setMode('macros')}
+              className={`flex-1 px-3 py-2 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+            >
+              <Text
+                className={`font-geist-mono text-center text-xs ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
+              >
+                Completa
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setMode('calories')}
+              className={`flex-1 px-3 py-2 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+            >
+              <Text
+                className={`font-geist-mono text-center text-xs ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
+              >
+                Solo calorías
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {mode === 'macros' && (
+            <View className='flex-row gap-2'>
+              <View className='flex-1'>{field('protein', 'Proteína (g)')}</View>
+              <View className='flex-1'>{field('carbs', 'Carbos (g)')}</View>
+              <View className='flex-1'>{field('fat', 'Grasa (g)')}</View>
+            </View>
+          )}
+          <View className='flex-row gap-3'>
+            <View className='flex-1'>{field('ref', 'Porción etiqueta (g/ml)')}</View>
+            <View className='flex-1'>{field('eaten', 'Porción consumida')}</View>
+          </View>
+          <MealPicker
+            meals={meals}
+            mealId={form.mealId}
+            setMealId={(mealId) =>
               setForm({
                 ...form,
-                mealId: m.id,
+                mealId,
               })
             }
-            className={`px-3 py-2 rounded-full ${form.mealId === m.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+          />
+          <Text className='font-geist-mono text-xs text-zinc-500 mb-4'>
+            Puedes tomar o seleccionar la etiqueta al registrar; esta v1 conserva el formulario
+            editable y no lee texto de imágenes.
+          </Text>
+          <TouchableOpacity onPress={saveExternal} className='bg-zinc-950 rounded-full p-4'>
+            <Text className='font-geist-mono text-center text-white'>Guardar alimento</Text>
+          </TouchableOpacity>
+        </>
+      )}
+    </AppBottomSheet>
+  )
+}
+
+function MealPicker({
+  meals,
+  mealId,
+  setMealId,
+}: {
+  meals: {
+    id: string
+    name: string
+  }[]
+  mealId: string
+  setMealId: (mealId: string) => void
+}) {
+  return (
+    <>
+      <Text className='font-geist-mono text-xs text-zinc-600 mb-2'>Comida</Text>
+      <View className='flex-row flex-wrap gap-2 mb-5'>
+        {meals.map((meal) => (
+          <TouchableOpacity
+            key={meal.id}
+            onPress={() => setMealId(meal.id)}
+            className={`px-3 py-2 rounded-full ${mealId === meal.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
           >
             <Text
-              className={`font-geist-mono text-xs ${form.mealId === m.id ? 'text-white' : 'text-zinc-700'}`}
+              className={`font-geist-mono text-xs ${mealId === meal.id ? 'text-white' : 'text-zinc-700'}`}
             >
-              {m.name}
+              {meal.name}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
-      <Text className='font-geist-mono text-xs text-zinc-500 mb-4'>
-        Puedes tomar o seleccionar la etiqueta al registrar; esta v1 conserva el formulario editable
-        y no lee texto de imágenes.
-      </Text>
-      <TouchableOpacity onPress={save} className='bg-zinc-950 rounded-full p-4'>
-        <Text className='font-geist-mono text-center text-white'>Guardar alimento</Text>
-      </TouchableOpacity>
-    </AppBottomSheet>
+    </>
   )
 }
