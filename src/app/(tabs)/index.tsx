@@ -511,7 +511,7 @@ function FoodModal({
         keyboardType={key === 'name' ? 'default' : 'decimal-pad'}
         placeholder={placeholder}
         placeholderTextColor='#a1a1aa'
-        className='border border-zinc-200 bg-zinc-50 rounded-full px-4 py-4 font-geist-mono text-zinc-950'
+        className='border border-zinc-200 bg-zinc-50 rounded-full p-4 font-geist-mono text-zinc-950'
       />
     </View>
   )
@@ -554,55 +554,67 @@ function FoodModal({
         }}
         ListHeaderComponent={
           <>
-            <View className='flex-row justify-between mb-5'>
-              <Text className='font-geist-mono text-xl'>Registrar alimento</Text>
+            <View className='flex-row justify-between items-center mb-5'>
+              <View className='flex-row items-center gap-3'>
+                {source === 'smae' && (selectedFood || !isBrowsingGroups) && (
+                  <TouchableOpacity
+                    accessibilityLabel={selectedFood ? 'Volver al catálogo' : 'Volver a grupos'}
+                    hitSlop={8}
+                    onPress={() => {
+                      if (selectedFood) setSelectedFood(null)
+                      else {
+                        setQuery('')
+                        setSelectedGroup(null)
+                      }
+                      resetToTop()
+                    }}
+                    className='w-10 h-10 rounded-full bg-white border border-zinc-200 items-center justify-center active:opacity-60'
+                  >
+                    <Feather name='arrow-left' size={18} color='#52525b' />
+                  </TouchableOpacity>
+                )}
+                <Text className='font-geist-mono text-xl'>Registrar alimento</Text>
+              </View>
               <TouchableOpacity onPress={close}>
                 <Feather name='x' size={22} />
               </TouchableOpacity>
             </View>
-            <View className='flex-row mb-5 gap-2'>
-              <TouchableOpacity
-                onPress={() => selectSource('smae')}
-                className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-              >
-                <Text
-                  className={`font-geist-mono text-center text-base ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
+            {(source === 'external' || (isBrowsingGroups && !selectedFood)) && (
+              <View className='flex-row mb-5 gap-2'>
+                <TouchableOpacity
+                  onPress={() => selectSource('smae')}
+                  className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
                 >
-                  SMAE
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => selectSource('external')}
-                className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-              >
-                <Text
-                  className={`font-geist-mono text-center text-base ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
+                  <Text
+                    className={`font-geist-mono text-center text-base ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
+                  >
+                    SMAE
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => selectSource('external')}
+                  className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
                 >
-                  Externo
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text
+                    className={`font-geist-mono text-center text-base ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
+                  >
+                    Externo
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
             {source === 'smae' ? (
               <>
                 {selectedFood ? (
                   <View className='bg-white rounded-3xl border border-zinc-200 p-4 mb-4'>
-                    <TouchableOpacity
-                      onPress={() => {
-                        setSelectedFood(null)
-                        resetToTop()
-                      }}
-                      className='self-start rounded-full px-3 py-2 bg-zinc-100 mb-4'
-                    >
-                      <Text className='font-geist-mono text-xs text-zinc-600'>← Catálogo</Text>
-                    </TouchableOpacity>
                     <Text className='font-geist-mono text-lg text-zinc-950'>
                       {selectedFood.name}
                     </Text>
                     <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
                       {selectedFood.group} · {selectedFood.portion}
                     </Text>
-                    <Text className='font-geist-mono text-xs text-zinc-500 mt-4 mb-2'>
+                    <Text className='font-geist-mono text-sm text-zinc-500 mt-4 mb-3'>
                       Equivalentes
                     </Text>
                     <View className='flex-row items-center gap-2'>
@@ -625,42 +637,32 @@ function FoodModal({
                   </View>
                 ) : (
                   <>
-                    <View className='flex-row items-center border border-zinc-200 bg-white rounded-full mb-3'>
-                      <BottomSheetTextInput
-                        value={query}
-                        onChangeText={(value) => {
-                          setQuery(value)
-                          resetToTop()
-                        }}
-                        placeholder='Buscar alimento'
-                        placeholderTextColor='#a1a1aa'
-                        className='flex-1 px-4 py-3 font-geist-mono text-zinc-950'
-                      />
-                      {query.length > 0 && (
-                        <TouchableOpacity
-                          accessibilityLabel='Borrar búsqueda'
-                          onPress={() => {
-                            setQuery('')
+                    <View className='flex-row items-center mb-3'>
+                      <View className='flex-1 flex-row items-center border border-zinc-200 bg-white rounded-full'>
+                        <BottomSheetTextInput
+                          value={query}
+                          onChangeText={(value) => {
+                            setQuery(value)
                             resetToTop()
                           }}
-                          className='w-11 h-11 items-center justify-center'
-                        >
-                          <Feather name='x' size={18} color='#71717a' />
-                        </TouchableOpacity>
-                      )}
+                          placeholder='Buscar alimento'
+                          placeholderTextColor='#a1a1aa'
+                          className='flex-1 py-4 pl-4 font-geist-mono text-zinc-950'
+                        />
+                        {query.length > 0 && (
+                          <TouchableOpacity
+                            accessibilityLabel='Borrar búsqueda'
+                            onPress={() => {
+                              setQuery('')
+                              resetToTop()
+                            }}
+                            className='w-11 h-11 pr-2 items-center justify-center'
+                          >
+                            <Feather name='x' size={18} color='#71717a' />
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
-                    {!isBrowsingGroups && (
-                      <TouchableOpacity
-                        onPress={() => {
-                          setQuery('')
-                          setSelectedGroup(null)
-                          resetToTop()
-                        }}
-                        className='self-start rounded-full px-3 py-2 bg-white border border-zinc-200 mb-3'
-                      >
-                        <Text className='font-geist-mono text-xs text-zinc-600'>← Grupos</Text>
-                      </TouchableOpacity>
-                    )}
                     {isBrowsingGroups ? (
                       <View className='flex-row flex-wrap gap-2 mb-4'>
                         {GROUPS.map((group) => (
@@ -670,10 +672,10 @@ function FoodModal({
                               setSelectedGroup(group)
                               resetToTop()
                             }}
-                            className='w-[48%] bg-white border border-zinc-200 rounded-2xl p-3'
+                            className='w-[49%] bg-white border border-zinc-200 rounded-2xl p-3 justify-between'
                           >
-                            <Text className='font-geist-mono text-sm text-zinc-900'>{group}</Text>
-                            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
+                            <Text className='font-geist-mono text-base text-zinc-900'>{group}</Text>
+                            <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
                               {CATALOG_BY_GROUP[group].length} alimentos
                             </Text>
                           </TouchableOpacity>
