@@ -43,8 +43,8 @@ export default function HomeTab() {
     protein: '',
     carbs: '',
     fat: '',
-    ref: '100',
-    eaten: '100',
+    ref: '',
+    eaten: '',
     mealId: meals[0]?.id ?? '',
   })
   const plan = useMemo(
@@ -450,9 +450,9 @@ function FoodModal({
       setSelectedFood(null)
     }
   }
-  const field = (key: keyof ExternalFoodForm, label: string) => (
-    <View className='mb-3'>
-      <Text className='font-geist-mono text-xs text-zinc-600 mb-1'>{label}</Text>
+  const field = (key: keyof ExternalFoodForm, label: string, placeholder = '0') => (
+    <View className='mb-4'>
+      <Text className='font-geist-mono text-sm text-zinc-600 pl-2 mb-1'>{label}</Text>
       <TextInput
         value={form[key]}
         onChangeText={(v) =>
@@ -462,9 +462,9 @@ function FoodModal({
           })
         }
         keyboardType={key === 'name' ? 'default' : 'decimal-pad'}
-        placeholder='0'
+        placeholder={placeholder}
         placeholderTextColor='#a1a1aa'
-        className='border border-zinc-200 bg-zinc-50 rounded-full px-4 py-3 font-geist-mono text-zinc-950'
+        className='border border-zinc-200 bg-zinc-50 rounded-full px-4 py-4 font-geist-mono text-zinc-950'
       />
     </View>
   )
@@ -482,7 +482,7 @@ function FoodModal({
           className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
         >
           <Text
-            className={`font-geist-mono text-center text-xs ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
+            className={`font-geist-mono text-center text-base ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
           >
             SMAE
           </Text>
@@ -492,7 +492,7 @@ function FoodModal({
           className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
         >
           <Text
-            className={`font-geist-mono text-center text-xs ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
+            className={`font-geist-mono text-center text-base ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
           >
             Externo
           </Text>
@@ -616,25 +616,25 @@ function FoodModal({
         </>
       ) : (
         <>
-          {field('name', 'Nombre')}
-          {field('kcal', 'kcal de etiqueta')}
+          {field('name', 'Nombre', 'Ej. Yogur natural')}
+          {field('kcal', 'kcal de etiqueta', '120')}
           <View className='flex-row mb-4 gap-2'>
             <TouchableOpacity
               onPress={() => setMode('macros')}
-              className={`flex-1 px-3 py-2 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+              className={`flex-1 p-3 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
             >
               <Text
-                className={`font-geist-mono text-center text-xs ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
+                className={`font-geist-mono text-center text-sm ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
               >
                 Completa
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setMode('calories')}
-              className={`flex-1 px-3 py-2 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+              className={`flex-1 p-3 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
             >
               <Text
-                className={`font-geist-mono text-center text-xs ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
+                className={`font-geist-mono text-center text-sm ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
               >
                 Solo calorías
               </Text>
@@ -642,14 +642,14 @@ function FoodModal({
           </View>
           {mode === 'macros' && (
             <View className='flex-row gap-2'>
-              <View className='flex-1'>{field('protein', 'Proteína (g)')}</View>
-              <View className='flex-1'>{field('carbs', 'Carbos (g)')}</View>
-              <View className='flex-1'>{field('fat', 'Grasa (g)')}</View>
+              <View className='flex-1'>{field('protein', 'Proteína (g)', '8')}</View>
+              <View className='flex-1'>{field('carbs', 'Carbos (g)', '12')}</View>
+              <View className='flex-1'>{field('fat', 'Grasa (g)', '4')}</View>
             </View>
           )}
           <View className='flex-row gap-3'>
-            <View className='flex-1'>{field('ref', 'Porción etiqueta (g/ml)')}</View>
-            <View className='flex-1'>{field('eaten', 'Porción consumida')}</View>
+            <View className='flex-1'>{field('ref', 'Porción etiqueta\n(g/ml)', '100')}</View>
+            <View className='flex-1'>{field('eaten', 'Porción consumida\n(g/ml)', '100')}</View>
           </View>
           <MealPicker
             meals={meals}
@@ -661,10 +661,7 @@ function FoodModal({
               })
             }
           />
-          <Text className='font-geist-mono text-xs text-zinc-500 mb-4'>
-            Puedes tomar o seleccionar la etiqueta al registrar; esta v1 conserva el formulario
-            editable y no lee texto de imágenes.
-          </Text>
+          <View className='h-4' />
           <TouchableOpacity onPress={saveExternal} className='bg-zinc-950 rounded-full p-4'>
             <Text className='font-geist-mono text-center text-white'>Guardar alimento</Text>
           </TouchableOpacity>
@@ -688,16 +685,16 @@ function MealPicker({
 }) {
   return (
     <>
-      <Text className='font-geist-mono text-xs text-zinc-600 mb-2'>Comida</Text>
+      <Text className='font-geist-mono text-sm text-zinc-600 mb-2'>Comida</Text>
       <View className='flex-row flex-wrap gap-2 mb-5'>
         {meals.map((meal) => (
           <TouchableOpacity
             key={meal.id}
             onPress={() => setMealId(meal.id)}
-            className={`px-3 py-2 rounded-full ${mealId === meal.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+            className={`px-4 py-2 rounded-full ${mealId === meal.id ? 'bg-zinc-950' : 'bg-zinc-200'}`}
           >
             <Text
-              className={`font-geist-mono text-xs ${mealId === meal.id ? 'text-white' : 'text-zinc-700'}`}
+              className={`font-geist-mono text-sm ${mealId === meal.id ? 'text-white' : 'text-zinc-700'}`}
             >
               {meal.name}
             </Text>
