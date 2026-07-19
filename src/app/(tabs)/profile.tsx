@@ -51,10 +51,9 @@ const MEAL_EXCHANGE_GROUPS = GROUPS.filter(
 )
 
 export default function PlanTab() {
-  const { meals, setExchange, addMeal, renameMeal, removeMeal, addExternal } = useSmaeStore()
+  const { meals, setExchange, addMeal, renameMeal, removeMeal } = useSmaeStore()
   const [activeMealId, setActiveMealId] = useState(meals[0]?.id ?? '')
   const [managerOpen, setManagerOpen] = useState(false)
-  const [catalogOpen, setCatalogOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const activeMeal = meals.find((meal) => meal.id === activeMealId) ?? meals[0]
   const dayTotal = useMemo(
@@ -182,18 +181,6 @@ export default function PlanTab() {
             <MacroLine values={dayTotal} light />
           </View>
         </View>
-        <TouchableOpacity
-          onPress={() => setCatalogOpen(true)}
-          className='mx-5 mt-4 p-4 bg-white border border-zinc-200 rounded-2xl flex-row justify-between items-center'
-        >
-          <View>
-            <Text className='font-geist-mono text-lg text-zinc-900'>Catálogo SMAE</Text>
-            <Text className='font-geist-mono text-base text-zinc-500 mt-1'>
-              Registrar un alimento por equivalente
-            </Text>
-          </View>
-          <Feather name='book-open' size={18} color='#3f3f46' />
-        </TouchableOpacity>
       </ScrollView>
       <MealManager
         visible={managerOpen}
@@ -206,12 +193,6 @@ export default function PlanTab() {
         addMeal={addMeal}
         renameMeal={renameMeal}
         removeMeal={removeMeal}
-      />
-      <CatalogModal
-        visible={catalogOpen}
-        close={() => setCatalogOpen(false)}
-        meals={meals}
-        addExternal={addExternal}
       />
     </SafeAreaView>
   )
@@ -330,7 +311,7 @@ type CatalogModalProps = {
   addExternal: (food: Omit<ExternalFood, 'id' | 'createdAt'>) => void
 }
 
-function CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps) {
+function _CatalogModal({ visible, close, meals, addExternal }: CatalogModalProps) {
   const sheetRef = useRef<BottomSheetModal>(null)
   const listRef = useRef<BottomSheetFlatListMethods>(null)
   const [query, setQuery] = useState('')
