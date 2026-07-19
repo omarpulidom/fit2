@@ -39,6 +39,17 @@ const sum = (items: Macro[]) =>
     },
   )
 const n = (v: number) => `${Math.round(v)}`
+const todayLabel = () => {
+  const parts = new Intl.DateTimeFormat('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).formatToParts(new Date())
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+
+  return `${value('day')} ${value('month').replace('.', '').toLocaleUpperCase()}, ${value('year')}`
+}
 const PLURAL_UNITS: Record<string, string> = {
   barra: 'barras',
   bolsa: 'bolsas',
@@ -159,7 +170,7 @@ export default function HomeTab() {
         <View className='flex-row justify-between items-start mb-4'>
           <View>
             <Text className='font-geist-mono text-sm tracking-widest text-zinc-500'>
-              SMAE / HOY
+              {todayLabel()}
             </Text>
             <Text className='font-geist-mono text-3xl text-zinc-950 mt-1'>Tu día</Text>
           </View>
