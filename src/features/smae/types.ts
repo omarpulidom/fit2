@@ -50,6 +50,7 @@ export type ExternalFood = {
   createdAt: string
   imageUri?: string
 }
+export type FoodRegistration = Omit<ExternalFood, 'id' | 'createdAt'>
 export type Adjustment = {
   id: string
   createdAt: string
@@ -67,7 +68,8 @@ export type SmaeState = {
   addMeal: (name: string) => void
   renameMeal: (mealId: string, name: string) => void
   removeMeal: (mealId: string) => void
-  addExternal: (food: Omit<ExternalFood, 'id' | 'createdAt'>) => void
+  addExternal: (food: FoodRegistration) => void
+  addFoods: (foods: FoodRegistration[]) => void
   proposeAdjustment: () => void
   applyAdjustment: () => void
   resetDay: () => void

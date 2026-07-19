@@ -88,15 +88,16 @@ export const useSmaeStore = create<SmaeState>()(
                 externalFoods: s.externalFoods.filter((f) => f.mealId !== mealId),
               },
         ),
-      addExternal: (food) =>
+      addExternal: (food) => get().addFoods([food]),
+      addFoods: (foods) =>
         set((s) => ({
           externalFoods: [
             ...s.externalFoods,
-            {
+            ...foods.map((food) => ({
               ...food,
               id: id(),
               createdAt: new Date().toISOString(),
-            },
+            })),
           ],
           adjustment: undefined,
         })),
