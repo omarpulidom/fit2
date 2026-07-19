@@ -98,17 +98,22 @@ export const normalizeCatalogSearch = (value: string) =>
   value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase()
+    .toLowerCase()
 
-export const CATALOG_BY_GROUP = GROUPS.reduce<Record<SmaeGroup, Food[]>>(
+const EMPTY_CATALOG_BY_GROUP = GROUPS.reduce<Record<SmaeGroup, Food[]>>(
   (groups, group) => {
-    groups[group] = CATALOG.filter((food) => food.group === group)
+    groups[group] = []
     return groups
   },
   {} as Record<SmaeGroup, Food[]>,
 )
 
+export const CATALOG_BY_GROUP = CATALOG.reduce<Record<SmaeGroup, Food[]>>((groups, food) => {
+  groups[food.group].push(food)
+  return groups
+}, EMPTY_CATALOG_BY_GROUP)
+
 export const CATALOG_SEARCH_INDEX = CATALOG.map((food) => ({
   food,
-  searchText: normalizeCatalogSearch(`${food.name} ${food.group} ${food.portion}`),
+  searchText: normalizeCatalogSearch(`${food.name} ${food.portion}`),
 }))

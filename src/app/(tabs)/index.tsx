@@ -1,9 +1,16 @@
 import { Feather } from '@expo/vector-icons'
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import {
+  BottomSheetBackdrop,
+  type BottomSheetBackdropProps,
+  BottomSheetFlatList,
+  type BottomSheetFlatListMethods,
+  BottomSheetModal,
+  BottomSheetTextInput,
+} from '@gorhom/bottom-sheet'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Alert, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Circle } from 'react-native-svg'
-import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import {
   CATALOG_BY_GROUP,
   CATALOG_SEARCH_INDEX,
@@ -415,13 +422,36 @@ function FoodModal({
   saveExternal,
   saveSmae,
 }: FoodModalProps) {
+  const sheetRef = useRef<BottomSheetModal>(null)
+  const listRef = useRef<BottomSheetFlatListMethods>(null)
+  const { height } = useWindowDimensions()
   const [query, setQuery] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | null>(null)
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const [equivalents, setEquivalents] = useState(1)
-  const deferredQuery = useDeferredValue(query)
-  const normalizedQuery = normalizeCatalogSearch(deferredQuery.trim())
+  const normalizedQuery = normalizeCatalogSearch(query.trim())
   const isBrowsingGroups = !normalizedQuery && !selectedGroup
+  const resetToTop = useCallback(() => {
+    requestAnimationFrame(() =>
+      listRef.current?.scrollToOffset({
+        offset: 0,
+        animated: false,
+      }),
+    )
+  }, [])
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} appearsOnIndex={0} disappearsOnIndex={-1} />
+    ),
+    [],
+  )
+  useEffect(() => {
+    if (!visible) return
+    const frame = requestAnimationFrame(() => sheetRef.current?.present())
+    return () => cancelAnimationFrame(frame)
+  }, [
+    visible,
+  ])
   useEffect(() => {
     if (visible) return
     setQuery('')
@@ -442,6 +472,22 @@ function FoodModal({
     normalizedQuery,
     selectedGroup,
   ])
+  const chooseFood = useCallback(
+    (food: Food) => {
+      setSelectedFood(food)
+      setEquivalents(1)
+      resetToTop()
+    },
+    [
+      resetToTop,
+    ],
+  )
+  const renderFood = useCallback(
+    ({ item }: { item: Food }) => <CatalogFoodRow food={item} onChoose={chooseFood} />,
+    [
+      chooseFood,
+    ],
+  )
   const selectSource = (value: 'smae' | 'external') => {
     setSource(value)
     if (value === 'external') {
@@ -449,11 +495,12 @@ function FoodModal({
       setSelectedGroup(null)
       setSelectedFood(null)
     }
+    resetToTop()
   }
   const field = (key: keyof ExternalFoodForm, label: string, placeholder = '0') => (
     <View className='mb-4'>
       <Text className='font-geist-mono text-sm text-zinc-600 pl-2 mb-1'>{label}</Text>
-      <TextInput
+      <BottomSheetTextInput
         value={form[key]}
         onChangeText={(v) =>
           setForm({
@@ -468,208 +515,285 @@ function FoodModal({
       />
     </View>
   )
-  return (
-    <AppBottomSheet visible={visible} onDismiss={close} maxHeight={0.92}>
-      <View className='flex-row justify-between mb-5'>
-        <Text className='font-geist-mono text-xl'>Registrar alimento</Text>
-        <TouchableOpacity onPress={close}>
-          <Feather name='x' size={22} />
-        </TouchableOpacity>
-      </View>
-      <View className='flex-row mb-5 gap-2'>
-        <TouchableOpacity
-          onPress={() => selectSource('smae')}
-          className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-        >
-          <Text
-            className={`font-geist-mono text-center text-base ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
-          >
-            SMAE
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => selectSource('external')}
-          className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-        >
-          <Text
-            className={`font-geist-mono text-center text-base ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
-          >
-            Externo
-          </Text>
-        </TouchableOpacity>
-      </View>
 
-      {source === 'smae' ? (
-        <>
-          {selectedFood ? (
-            <View className='bg-white rounded-3xl border border-zinc-200 p-4 mb-4'>
-              <TouchableOpacity
-                onPress={() => setSelectedFood(null)}
-                className='self-start rounded-full px-3 py-2 bg-zinc-100 mb-4'
-              >
-                <Text className='font-geist-mono text-xs text-zinc-600'>← Catálogo</Text>
+  if (!visible) return null
+
+  return (
+    <BottomSheetModal
+      ref={sheetRef}
+      index={0}
+      enableDynamicSizing
+      maxDynamicContentSize={height * 0.92}
+      enablePanDownToClose
+      keyboardBehavior='extend'
+      keyboardBlurBehavior='restore'
+      backdropComponent={renderBackdrop}
+      onDismiss={close}
+      backgroundStyle={{
+        backgroundColor: '#f7f7f5',
+      }}
+      handleIndicatorStyle={{
+        backgroundColor: '#a1a1aa',
+      }}
+    >
+      <BottomSheetFlatList
+        ref={listRef}
+        data={source === 'smae' && !selectedFood ? foods : []}
+        keyExtractor={(food: Food) => food.id}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={50}
+        windowSize={7}
+        removeClippedSubviews
+        keyboardShouldPersistTaps='handled'
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+          minHeight: source === 'smae' && !selectedFood ? height * 0.7 : undefined,
+        }}
+        ListHeaderComponent={
+          <>
+            <View className='flex-row justify-between mb-5'>
+              <Text className='font-geist-mono text-xl'>Registrar alimento</Text>
+              <TouchableOpacity onPress={close}>
+                <Feather name='x' size={22} />
               </TouchableOpacity>
-              <Text className='font-geist-mono text-lg text-zinc-950'>{selectedFood.name}</Text>
-              <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                {selectedFood.group} · {selectedFood.portion}
-              </Text>
-              <Text className='font-geist-mono text-xs text-zinc-500 mt-4 mb-2'>Equivalentes</Text>
-              <View className='flex-row items-center gap-2'>
-                <TouchableOpacity
-                  onPress={() => setEquivalents((value) => Math.max(0.5, value - 0.5))}
-                  className='bg-zinc-100 w-11 h-11 rounded-full items-center justify-center'
-                >
-                  <Feather name='minus' size={14} />
-                </TouchableOpacity>
-                <Text className='font-geist-mono text-center text-lg w-14 text-zinc-950'>
-                  {equivalents}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => setEquivalents((value) => value + 0.5)}
-                  className='bg-zinc-950 w-11 h-11 rounded-full items-center justify-center'
-                >
-                  <Feather name='plus' color='white' size={14} />
-                </TouchableOpacity>
-              </View>
             </View>
-          ) : (
-            <>
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder='Buscar alimento'
-                placeholderTextColor='#a1a1aa'
-                className='border border-zinc-200 bg-white rounded-full px-4 py-3 font-geist-mono text-zinc-950 mb-3'
-              />
-              {!isBrowsingGroups && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setQuery('')
-                    setSelectedGroup(null)
-                  }}
-                  className='self-start rounded-full px-3 py-2 bg-white border border-zinc-200 mb-3'
+            <View className='flex-row mb-5 gap-2'>
+              <TouchableOpacity
+                onPress={() => selectSource('smae')}
+                className={`flex-1 px-3 py-3 rounded-full ${source === 'smae' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+              >
+                <Text
+                  className={`font-geist-mono text-center text-base ${source === 'smae' ? 'text-white' : 'text-zinc-700'}`}
                 >
-                  <Text className='font-geist-mono text-xs text-zinc-600'>← Grupos</Text>
-                </TouchableOpacity>
-              )}
-              {isBrowsingGroups ? (
-                <View className='flex-row flex-wrap gap-2 mb-4'>
-                  {GROUPS.map((group) => (
+                  SMAE
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => selectSource('external')}
+                className={`flex-1 px-3 py-3 rounded-full ${source === 'external' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+              >
+                <Text
+                  className={`font-geist-mono text-center text-base ${source === 'external' ? 'text-white' : 'text-zinc-700'}`}
+                >
+                  Externo
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {source === 'smae' ? (
+              <>
+                {selectedFood ? (
+                  <View className='bg-white rounded-3xl border border-zinc-200 p-4 mb-4'>
                     <TouchableOpacity
-                      key={group}
-                      onPress={() => setSelectedGroup(group)}
-                      className='w-[48%] bg-white border border-zinc-200 rounded-2xl p-3'
+                      onPress={() => {
+                        setSelectedFood(null)
+                        resetToTop()
+                      }}
+                      className='self-start rounded-full px-3 py-2 bg-zinc-100 mb-4'
                     >
-                      <Text className='font-geist-mono text-sm text-zinc-900'>{group}</Text>
-                      <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
-                        {CATALOG_BY_GROUP[group].length} alimentos
-                      </Text>
+                      <Text className='font-geist-mono text-xs text-zinc-600'>← Catálogo</Text>
                     </TouchableOpacity>
-                  ))}
-                </View>
-              ) : foods.length ? (
-                foods.map((food) => (
-                  <TouchableOpacity
-                    key={food.id}
-                    onPress={() => {
-                      setSelectedFood(food)
-                      setEquivalents(1)
-                    }}
-                    className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
-                  >
-                    <View className='flex-1 pr-3'>
-                      <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
-                      <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                        {food.group} · {food.portion}
+                    <Text className='font-geist-mono text-lg text-zinc-950'>
+                      {selectedFood.name}
+                    </Text>
+                    <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+                      {selectedFood.group} · {selectedFood.portion}
+                    </Text>
+                    <Text className='font-geist-mono text-xs text-zinc-500 mt-4 mb-2'>
+                      Equivalentes
+                    </Text>
+                    <View className='flex-row items-center gap-2'>
+                      <TouchableOpacity
+                        onPress={() => setEquivalents((value) => Math.max(0.5, value - 0.5))}
+                        className='bg-zinc-100 w-11 h-11 rounded-full items-center justify-center'
+                      >
+                        <Feather name='minus' size={14} />
+                      </TouchableOpacity>
+                      <Text className='font-geist-mono text-center text-lg w-14 text-zinc-950'>
+                        {equivalents}
                       </Text>
+                      <TouchableOpacity
+                        onPress={() => setEquivalents((value) => value + 0.5)}
+                        className='bg-zinc-950 w-11 h-11 rounded-full items-center justify-center'
+                      >
+                        <Feather name='plus' color='white' size={14} />
+                      </TouchableOpacity>
                     </View>
-                    <Feather name='plus' size={17} color='#52525b' />
+                  </View>
+                ) : (
+                  <>
+                    <View className='flex-row items-center border border-zinc-200 bg-white rounded-full mb-3'>
+                      <BottomSheetTextInput
+                        value={query}
+                        onChangeText={(value) => {
+                          setQuery(value)
+                          resetToTop()
+                        }}
+                        placeholder='Buscar alimento'
+                        placeholderTextColor='#a1a1aa'
+                        className='flex-1 px-4 py-3 font-geist-mono text-zinc-950'
+                      />
+                      {query.length > 0 && (
+                        <TouchableOpacity
+                          accessibilityLabel='Borrar búsqueda'
+                          onPress={() => {
+                            setQuery('')
+                            resetToTop()
+                          }}
+                          className='w-11 h-11 items-center justify-center'
+                        >
+                          <Feather name='x' size={18} color='#71717a' />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {!isBrowsingGroups && (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setQuery('')
+                          setSelectedGroup(null)
+                          resetToTop()
+                        }}
+                        className='self-start rounded-full px-3 py-2 bg-white border border-zinc-200 mb-3'
+                      >
+                        <Text className='font-geist-mono text-xs text-zinc-600'>← Grupos</Text>
+                      </TouchableOpacity>
+                    )}
+                    {isBrowsingGroups ? (
+                      <View className='flex-row flex-wrap gap-2 mb-4'>
+                        {GROUPS.map((group) => (
+                          <TouchableOpacity
+                            key={group}
+                            onPress={() => {
+                              setSelectedGroup(group)
+                              resetToTop()
+                            }}
+                            className='w-[48%] bg-white border border-zinc-200 rounded-2xl p-3'
+                          >
+                            <Text className='font-geist-mono text-sm text-zinc-900'>{group}</Text>
+                            <Text className='font-geist-mono text-xs text-zinc-500 mt-1'>
+                              {CATALOG_BY_GROUP[group].length} alimentos
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    ) : foods.length ? null : (
+                      <Text className='font-geist-mono text-base text-zinc-500 py-6'>
+                        No encontramos alimentos con esa búsqueda.
+                      </Text>
+                    )}
+                  </>
+                )}
+                {selectedFood && (
+                  <MealPicker
+                    meals={meals}
+                    mealId={form.mealId}
+                    setMealId={(mealId) =>
+                      setForm({
+                        ...form,
+                        mealId,
+                      })
+                    }
+                  />
+                )}
+                {selectedFood && (
+                  <TouchableOpacity
+                    onPress={() => saveSmae(selectedFood, equivalents, form.mealId)}
+                    className='bg-zinc-950 rounded-full p-4'
+                  >
+                    <Text className='font-geist-mono text-center text-white'>
+                      Registrar equivalente
+                    </Text>
                   </TouchableOpacity>
-                ))
-              ) : (
-                <Text className='font-geist-mono text-base text-zinc-500 py-6'>
-                  No encontramos alimentos con esa búsqueda.
-                </Text>
-              )}
-            </>
-          )}
-          {selectedFood && (
-            <MealPicker
-              meals={meals}
-              mealId={form.mealId}
-              setMealId={(mealId) =>
-                setForm({
-                  ...form,
-                  mealId,
-                })
-              }
-            />
-          )}
-          {selectedFood && (
-            <TouchableOpacity
-              onPress={() => saveSmae(selectedFood, equivalents, form.mealId)}
-              className='bg-zinc-950 rounded-full p-4'
-            >
-              <Text className='font-geist-mono text-center text-white'>Registrar equivalente</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      ) : (
-        <>
-          {field('name', 'Nombre', 'Ej. Yogur natural')}
-          {field('kcal', 'kcal de etiqueta', '120')}
-          <View className='flex-row mb-4 gap-2'>
-            <TouchableOpacity
-              onPress={() => setMode('macros')}
-              className={`flex-1 p-3 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-            >
-              <Text
-                className={`font-geist-mono text-center text-sm ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
-              >
-                Completa
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setMode('calories')}
-              className={`flex-1 p-3 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
-            >
-              <Text
-                className={`font-geist-mono text-center text-sm ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
-              >
-                Solo calorías
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {mode === 'macros' && (
-            <View className='flex-row gap-2'>
-              <View className='flex-1'>{field('protein', 'Proteína (g)', '8')}</View>
-              <View className='flex-1'>{field('carbs', 'Carbos (g)', '12')}</View>
-              <View className='flex-1'>{field('fat', 'Grasa (g)', '4')}</View>
-            </View>
-          )}
-          <View className='flex-row gap-3'>
-            <View className='flex-1'>{field('ref', 'Porción etiqueta\n(g/ml)', '100')}</View>
-            <View className='flex-1'>{field('eaten', 'Porción consumida\n(g/ml)', '100')}</View>
-          </View>
-          <MealPicker
-            meals={meals}
-            mealId={form.mealId}
-            setMealId={(mealId) =>
-              setForm({
-                ...form,
-                mealId,
-              })
-            }
-          />
-          <View className='h-4' />
-          <TouchableOpacity onPress={saveExternal} className='bg-zinc-950 rounded-full p-4'>
-            <Text className='font-geist-mono text-center text-white'>Guardar alimento</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </AppBottomSheet>
+                )}
+              </>
+            ) : (
+              <>
+                {field('name', 'Nombre', 'Ej. Yogur natural')}
+                {field('kcal', 'kcal de etiqueta', '120')}
+                <View className='flex-row mb-4 gap-2'>
+                  <TouchableOpacity
+                    onPress={() => setMode('macros')}
+                    className={`flex-1 p-3 rounded-full ${mode === 'macros' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+                  >
+                    <Text
+                      className={`font-geist-mono text-center text-sm ${mode === 'macros' ? 'text-white' : 'text-zinc-700'}`}
+                    >
+                      Completa
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setMode('calories')}
+                    className={`flex-1 p-3 rounded-full ${mode === 'calories' ? 'bg-zinc-950' : 'bg-zinc-200'}`}
+                  >
+                    <Text
+                      className={`font-geist-mono text-center text-sm ${mode === 'calories' ? 'text-white' : 'text-zinc-700'}`}
+                    >
+                      Solo calorías
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {mode === 'macros' && (
+                  <View className='flex-row gap-2'>
+                    <View className='flex-1'>{field('protein', 'Proteína (g)', '8')}</View>
+                    <View className='flex-1'>{field('carbs', 'Carbos (g)', '12')}</View>
+                    <View className='flex-1'>{field('fat', 'Grasa (g)', '4')}</View>
+                  </View>
+                )}
+                <View className='flex-row gap-3'>
+                  <View className='flex-1'>{field('ref', 'Porción etiqueta\n(g/ml)', '100')}</View>
+                  <View className='flex-1'>
+                    {field('eaten', 'Porción consumida\n(g/ml)', '100')}
+                  </View>
+                </View>
+                <MealPicker
+                  meals={meals}
+                  mealId={form.mealId}
+                  setMealId={(mealId) =>
+                    setForm({
+                      ...form,
+                      mealId,
+                    })
+                  }
+                />
+                <View className='h-4' />
+                <TouchableOpacity onPress={saveExternal} className='bg-zinc-950 rounded-full p-4'>
+                  <Text className='font-geist-mono text-center text-white'>Guardar alimento</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </>
+        }
+        renderItem={renderFood}
+      />
+    </BottomSheetModal>
   )
 }
+
+const CatalogFoodRow = memo(function CatalogFoodRow({
+  food,
+  onChoose,
+}: {
+  food: Food
+  onChoose: (food: Food) => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={() => onChoose(food)}
+      className='py-3 border-t border-zinc-200 flex-row justify-between items-center'
+    >
+      <View className='flex-1 pr-3'>
+        <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
+        <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+          {food.group} · {food.portion}
+        </Text>
+      </View>
+      <Feather name='plus' size={17} color='#52525b' />
+    </TouchableOpacity>
+  )
+})
 
 function MealPicker({
   meals,
