@@ -46,6 +46,9 @@ const macroFor = (meal: Meal) =>
     })
   }, empty)
 const number = (value: number) => `${Number(value.toFixed(1))}`
+const MEAL_EXCHANGE_GROUPS = GROUPS.filter(
+  (group) => group !== 'Cereales · con grasa' && group !== 'AOA · alto aporte de grasa',
+)
 
 export default function PlanTab() {
   const { meals, setExchange, addMeal, renameMeal, removeMeal, addExternal } = useSmaeStore()
@@ -129,7 +132,7 @@ export default function PlanTab() {
             </Text>
             <Text className='font-geist-mono text-sm text-zinc-400'>equivalentes</Text>
           </View>
-          {GROUPS.map((group) => (
+          {MEAL_EXCHANGE_GROUPS.map((group) => (
             <View
               key={group}
               className='flex-row items-center justify-between py-2 border-t border-zinc-100'
