@@ -232,8 +232,11 @@ export default function HomeTab() {
             </Text>
           ) : (
             externalFoods.map((f) => (
-              <View key={f.id} className='py-3 border-t border-zinc-100 flex-row justify-between'>
-                <View>
+              <View
+                key={f.id}
+                className='py-3 border-t border-zinc-100 flex-row justify-between items-start'
+              >
+                <View className='flex-1 min-w-0 pr-2'>
                   <Text className='font-geist-mono text-base text-zinc-900'>{f.name}</Text>
                   <Text className='font-geist-mono text-sm text-zinc-500'>
                     {meals.find((m) => m.id === f.mealId)?.name} ·{' '}
@@ -244,7 +247,7 @@ export default function HomeTab() {
                         : 'solo kcal'}
                   </Text>
                 </View>
-                <Text className='font-geist-mono text-base'>
+                <Text className='font-geist-mono text-base shrink-0 text-right'>
                   {n((f.macro.kcal * f.eatenPortion) / f.referencePortion)} kcal
                 </Text>
               </View>
