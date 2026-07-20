@@ -2,28 +2,28 @@ import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import * as XLSX from 'xlsx'
 
-const GROUP_MAP = {
-  Verdura: 'Verduras',
-  Frutas: 'Frutas',
-  'Cereales sin grasa': 'Cereales · sin grasa',
-  'Cereales con grasa': 'Cereales · con grasa',
-  Leguminosas: 'Leguminosas',
-  'A.O.A Muy bajos en grasa': 'AOA · muy bajo aporte de grasa',
-  'A.O.A Bajo en grasa': 'AOA · bajo aporte de grasa',
-  'A.O.A Moderados en grasa': 'AOA · moderado aporte de grasa',
-  'A.O.A Alto en grasa': 'AOA · alto aporte de grasa',
-  'Leche descremada': 'Leche · descremada',
-  'Leche semidescremada': 'Leche · semidescremada',
-  'Leche entera': 'Leche · entera',
-  'Aceites y grasas': 'Grasas · sin proteína',
-  'Aceites y grasas con proteínas': 'Grasas · con proteína',
+const GROUP_ID_MAP = {
+  Verdura: 'vegetables',
+  Frutas: 'fruits',
+  'Cereales sin grasa': 'cereals_without_fat',
+  'Cereales con grasa': 'cereals_with_fat',
+  Leguminosas: 'legumes',
+  'A.O.A Muy bajos en grasa': 'aoa_very_low_fat',
+  'A.O.A Bajo en grasa': 'aoa_low_fat',
+  'A.O.A Moderados en grasa': 'aoa_moderate_fat',
+  'A.O.A Alto en grasa': 'aoa_high_fat',
+  'Leche descremada': 'milk_skim',
+  'Leche semidescremada': 'milk_semi_skim',
+  'Leche entera': 'milk_whole',
+  'Aceites y grasas': 'fats_without_protein',
+  'Aceites y grasas con proteínas': 'fats_with_protein',
 } as const
 
-type SmaeGroup = (typeof GROUP_MAP)[keyof typeof GROUP_MAP]
+type SmaeGroupId = (typeof GROUP_ID_MAP)[keyof typeof GROUP_ID_MAP]
 type CatalogEntry = {
   id: string
   name: string
-  group: SmaeGroup
+  groupId: SmaeGroupId
   quantity: number
   unit: string
   portion: string
@@ -58,9 +58,9 @@ const formatQuantity = (quantity: number) =>
 
 const catalog = rows.reduce<CatalogEntry[]>((entries, row, index) => {
   const sourceGroup = String(row[groupColumn] ?? '').trim()
-  const group = GROUP_MAP[sourceGroup as keyof typeof GROUP_MAP]
+  const groupId = GROUP_ID_MAP[sourceGroup as keyof typeof GROUP_ID_MAP]
 
-  if (!group) return entries
+  if (!groupId) return entries
 
   const name = String(row[foodColumn] ?? '').trim()
   const unit = String(row[unitColumn] ?? '').trim()
@@ -73,7 +73,7 @@ const catalog = rows.reduce<CatalogEntry[]>((entries, row, index) => {
   entries.push({
     id: `smae-${sourceRow}`,
     name,
-    group,
+    groupId,
     quantity,
     unit,
     portion: `${formatQuantity(quantity)} ${unit}`,

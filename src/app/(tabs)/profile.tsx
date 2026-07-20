@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
-import { GROUP_MACROS, GROUPS } from '@/features/smae/data'
+import { GROUP_MACROS, GROUPS, getGroupLabel } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
-import type { Macro, Meal } from '@/features/smae/types'
+import { GROUP_IDS, type Macro, type Meal, type SmaeGroupId } from '@/features/smae/types'
 
 const empty: Macro = {
   kcal: 0,
@@ -21,7 +21,7 @@ const add = (a: Macro, b: Macro): Macro => ({
 })
 const macroFor = (meal: Meal) =>
   Object.entries(meal.exchanges).reduce((total, [group, quantity]) => {
-    const macro = GROUP_MACROS[group as keyof typeof GROUP_MACROS]
+    const macro = GROUP_MACROS[group as SmaeGroupId]
     if (!macro) return total
     const q = quantity ?? 0
     return add(total, {
@@ -33,7 +33,7 @@ const macroFor = (meal: Meal) =>
   }, empty)
 const number = (value: number) => `${Number(value.toFixed(1))}`
 const MEAL_EXCHANGE_GROUPS = GROUPS.filter(
-  (group) => group !== 'Cereales · con grasa' && group !== 'AOA · alto aporte de grasa',
+  (groupId) => groupId !== GROUP_IDS.cerealsWithFat && groupId !== GROUP_IDS.aoaHighFat,
 )
 
 export default function PlanTab() {
@@ -134,29 +134,31 @@ export default function PlanTab() {
             </Text>
             <Text className='font-geist-mono text-sm text-zinc-400'>equivalentes</Text>
           </View>
-          {MEAL_EXCHANGE_GROUPS.map((group) => (
+          {MEAL_EXCHANGE_GROUPS.map((groupId) => (
             <View
-              key={group}
+              key={groupId}
               className='flex-row items-center justify-between py-2 border-t border-zinc-100'
             >
-              <Text className='font-geist-mono text-base text-zinc-800 flex-1 pr-2'>{group}</Text>
+              <Text className='font-geist-mono text-base text-zinc-800 flex-1 pr-2'>
+                {getGroupLabel(groupId)}
+              </Text>
               <View className='flex-row items-center gap-1'>
                 <TouchableOpacity
-                  accessibilityLabel={`Restar ${group}`}
+                  accessibilityLabel={`Restar ${getGroupLabel(groupId)}`}
                   onPress={() =>
-                    setExchange(activeMeal.id, group, (activeMeal.exchanges[group] ?? 0) - 0.5)
+                    setExchange(activeMeal.id, groupId, (activeMeal.exchanges[groupId] ?? 0) - 0.5)
                   }
                   className='bg-zinc-100 w-10 h-10 rounded-full items-center justify-center'
                 >
                   <Feather name='minus' size={14} />
                 </TouchableOpacity>
                 <Text className='font-geist-mono text-center text-base w-14 px-3 py-3 rounded-full text-zinc-950'>
-                  {activeMeal.exchanges[group] ?? 0}
+                  {activeMeal.exchanges[groupId] ?? 0}
                 </Text>
                 <TouchableOpacity
-                  accessibilityLabel={`Sumar ${group}`}
+                  accessibilityLabel={`Sumar ${getGroupLabel(groupId)}`}
                   onPress={() =>
-                    setExchange(activeMeal.id, group, (activeMeal.exchanges[group] ?? 0) + 0.5)
+                    setExchange(activeMeal.id, groupId, (activeMeal.exchanges[groupId] ?? 0) + 0.5)
                   }
                   className='bg-zinc-950 w-10 h-10 rounded-full items-center justify-center'
                 >

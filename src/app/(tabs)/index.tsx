@@ -18,10 +18,17 @@ import {
   CATALOG_SEARCH_INDEX,
   GROUP_MACROS,
   GROUPS,
+  getGroupLabel,
   normalizeCatalogSearch,
 } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
-import type { Food, FoodRegistration, Macro, SmaeGroup } from '@/features/smae/types'
+import {
+  type Food,
+  type FoodRegistration,
+  GROUP_IDS,
+  type Macro,
+  type SmaeGroupId,
+} from '@/features/smae/types'
 
 const sum = (items: Macro[]) =>
   items.reduce(
@@ -91,7 +98,7 @@ export default function HomeTab() {
       sum(
         meals.flatMap((m) =>
           Object.entries(m.exchanges).map(([g, x]) => {
-            const macro = GROUP_MACROS[g as keyof typeof GROUP_MACROS]
+            const macro = GROUP_MACROS[g as SmaeGroupId]
             const q = x ?? 0
             return macro
               ? {
@@ -241,7 +248,9 @@ export default function HomeTab() {
                   <Text className='font-geist-mono text-sm text-zinc-500'>
                     {meals.find((m) => m.id === f.mealId)?.name} ·{' '}
                     {f.source === 'smae'
-                      ? f.smaeGroup
+                      ? f.smaeGroupId
+                        ? getGroupLabel(f.smaeGroupId)
+                        : 'SMAE'
                       : f.mode === 'macros'
                         ? 'macros completos'
                         : 'solo kcal'}
@@ -265,8 +274,8 @@ export default function HomeTab() {
           {adjustment?.status === 'pending' ? (
             <View className='mt-4'>
               <Text className='text-white font-geist-mono text-base'>
-                Propuesta: {n(-(adjustment.delta['Cereales · sin grasa'] ?? 0))} cereales y{' '}
-                {n(-(adjustment.delta['Grasas · sin proteína'] ?? 0))} grasas
+                Propuesta: {n(-(adjustment.delta[GROUP_IDS.cerealsWithoutFat] ?? 0))} cereales y{' '}
+                {n(-(adjustment.delta[GROUP_IDS.fatsWithoutProtein] ?? 0))} grasas
               </Text>
               {adjustment.remainingKcal > 0 && (
                 <Text className='text-amber-300 font-geist-mono text-sm mt-2'>
@@ -419,7 +428,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
   const [draft, setDraft] = useState<DraftFood[]>([])
   const [isReviewingMeal, setIsReviewingMeal] = useState(false)
   const [query, setQuery] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<SmaeGroup | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<SmaeGroupId | null>(null)
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const [equivalents, setEquivalents] = useState(1)
   const normalizedQuery = normalizeCatalogSearch(query.trim())
@@ -477,7 +486,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
 
     return CATALOG_SEARCH_INDEX.filter(
       ({ food, searchText }) =>
-        (!selectedGroup || food.group === selectedGroup) && searchText.includes(normalizedQuery),
+        (!selectedGroup || food.groupId === selectedGroup) && searchText.includes(normalizedQuery),
     ).map(({ food }) => food)
   }, [
     normalizedQuery,
@@ -525,7 +534,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
         draftId: `${selectedFood.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: selectedFood.name,
         source: 'smae',
-        smaeGroup: selectedFood.group,
+        smaeGroupId: selectedFood.groupId,
         mode: 'macros',
         mealId,
         referencePortion: 1,
@@ -770,7 +779,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
                           {selectedFood.name}
                         </Text>
                         <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                          {selectedFood.group} · {selectedFood.portion}
+                          {getGroupLabel(selectedFood.groupId)} · {selectedFood.portion}
                         </Text>
                         <Text className='font-geist-mono text-sm text-zinc-500 mt-4 mb-3'>
                           Equivalentes
@@ -829,20 +838,20 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
                         </View>
                         {isBrowsingGroups ? (
                           <View className='flex-row flex-wrap gap-2 mb-4'>
-                            {GROUPS.map((group) => (
+                            {GROUPS.map((groupId) => (
                               <TouchableOpacity
-                                key={group}
+                                key={groupId}
                                 onPress={() => {
-                                  setSelectedGroup(group)
+                                  setSelectedGroup(groupId)
                                   resetToTop()
                                 }}
                                 className='w-[49%] bg-white border border-zinc-200 rounded-2xl p-3 justify-between'
                               >
                                 <Text className='font-geist-mono text-base text-zinc-900'>
-                                  {group}
+                                  {getGroupLabel(groupId)}
                                 </Text>
                                 <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-                                  {CATALOG_BY_GROUP[group].length} alimentos
+                                  {CATALOG_BY_GROUP[groupId].length} alimentos
                                 </Text>
                               </TouchableOpacity>
                             ))}
@@ -938,7 +947,7 @@ const CatalogFoodRow = memo(function CatalogFoodRow({
       <View className='flex-1 pr-3'>
         <Text className='font-geist-mono text-base text-zinc-900'>{food.name}</Text>
         <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-          {food.group} · {food.portion}
+          {getGroupLabel(food.groupId)} · {food.portion}
         </Text>
       </View>
       <Feather name='plus' size={17} color='#52525b' />
@@ -958,7 +967,7 @@ function DraftSummary({
   const groups = draft.reduce<DraftFoodGroup[]>((result, food) => {
     const key =
       food.source === 'smae'
-        ? `smae:${food.smaeGroup}:${food.name}:${food.servingQuantity}:${food.servingUnit}`
+        ? `smae:${food.smaeGroupId}:${food.name}:${food.servingQuantity}:${food.servingUnit}`
         : `external:${food.name}:${food.mode}:${food.referencePortion}:${food.macro.kcal}:${food.macro.protein}:${food.macro.carbs}:${food.macro.fat}`
     const group = result.find((item) => item.key === key)
 
@@ -1004,7 +1013,7 @@ function DraftSummary({
             </Text>
             <Text className='font-geist-mono text-sm text-zinc-400 mt-1'>
               {group.food.source === 'smae'
-                ? `${group.food.smaeGroup} · ${portion(
+                ? `${group.food.smaeGroupId ? getGroupLabel(group.food.smaeGroupId) : 'SMAE'} · ${portion(
                     group.totalEquivalents * (group.food.servingQuantity ?? 1),
                     group.food.servingUnit ?? 'porción',
                   )}`
