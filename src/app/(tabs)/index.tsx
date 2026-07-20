@@ -46,6 +46,7 @@ const sum = (items: Macro[]) =>
     },
   )
 const n = (v: number) => `${Math.round(v)}`
+const decimal = (v: number) => `${Number(v.toFixed(1))}`
 const todayLabel = () => {
   const parts = new Intl.DateTimeFormat('es-MX', {
     day: '2-digit',
@@ -210,10 +211,10 @@ export default function HomeTab() {
         <View className='flex-col'>
           <View className='flex-row items-end'>
             <Text className='font-doto-medium tracking-tighter text-8xl text-zinc-950'>
-              {consumed.kcal}
+              {n(consumed.kcal)}
             </Text>
             <Text className='font-geist-mono-extralight tracking-tighter text-4xl text-zinc-500 pb-5'>
-              /{plan.kcal}
+              /{n(plan.kcal)}
             </Text>
           </View>
           <Text className='font-geist-mono-light text-2xl text-zinc-400 -mt-4'>KCAL</Text>
@@ -336,7 +337,7 @@ function MacroProgressCard({
         <View className='gap-1'>
           <View className='flex-row items-center'>
             <Text className='font-geist-mono text-lg text-zinc-950 mt-3 leading-none'>
-              {n(used)}
+              {decimal(used)}
             </Text>
             <Text className='font-geist-mono-light text-base text-zinc-600 mt-3 leading-none'>
               /{n(target)}
