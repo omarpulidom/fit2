@@ -51,6 +51,7 @@ export type ExternalFood = {
   id: string
   name: string
   source?: 'smae' | 'external'
+  catalogFoodId?: string
   smaeGroupId?: SmaeGroupId
   mealId: string
   mode: 'macros' | 'calories'

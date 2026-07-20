@@ -563,6 +563,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
         mealId,
         referencePortion: Number(form.ref),
         eatenPortion: Number(form.eaten),
+        catalogFoodId: selectedFood.id,
         macro: {
           kcal: Number(form.kcal),
           protein: mode === 'macros' ? Number(form.protein) : 0,
