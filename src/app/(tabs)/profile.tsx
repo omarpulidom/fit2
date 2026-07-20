@@ -37,7 +37,7 @@ const MEAL_EXCHANGE_GROUPS = GROUPS.filter(
 )
 
 export default function PlanTab() {
-  const { meals, setExchange, addMeal, renameMeal, removeMeal } = useSmaeStore()
+  const { meals, setExchange, addMeal, renameMeal, removeMeal, resetDay } = useSmaeStore()
   const [activeMealId, setActiveMealId] = useState(meals[0]?.id ?? '')
   const [managerOpen, setManagerOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -55,6 +55,23 @@ export default function PlanTab() {
     activeMealId,
     meals,
   ])
+
+  const askResetDay = () =>
+    Alert.alert(
+      'Reiniciar día',
+      'Se borrarán tus registros y se restablecerán las comidas y equivalentes del día.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Reiniciar',
+          style: 'destructive',
+          onPress: resetDay,
+        },
+      ],
+    )
 
   if (!activeMeal) return null
 
@@ -167,6 +184,13 @@ export default function PlanTab() {
             <MacroLine values={dayTotal} light />
           </View>
         </View>
+        <TouchableOpacity
+          onPress={askResetDay}
+          className='mx-5 mt-4 border border-zinc-300 rounded-full px-4 py-3 flex-row items-center justify-center gap-2'
+        >
+          <Feather name='rotate-ccw' size={15} color='#52525b' />
+          <Text className='font-geist-mono text-sm text-zinc-600'>Reiniciar día</Text>
+        </TouchableOpacity>
       </ScrollView>
       <MealManager
         visible={managerOpen}
