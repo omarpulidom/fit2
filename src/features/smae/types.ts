@@ -62,18 +62,22 @@ export type ExternalFood = {
   imageUri?: string
 }
 export type FoodRegistration = Omit<ExternalFood, 'id' | 'createdAt'>
+export type MealExchangeDelta = {
+  mealId: string
+  groupId: SmaeGroupId
+  value: number
+}
 export type Adjustment = {
   id: string
   createdAt: string
-  delta: Partial<Record<AdjustableGroupId, number>>
-  unassignedKcal: number
-  remainingKcal: number
-  status: 'pending' | 'applied'
+  deltas: MealExchangeDelta[]
+  residual: Macro
 }
 
 export type SmaeState = {
   meals: Meal[]
   externalFoods: ExternalFood[]
+  appliedAdjustments: MealExchangeDelta[]
   adjustment?: Adjustment
   setExchange: (mealId: string, groupId: SmaeGroupId, value: number) => void
   addMeal: (name: string) => void
@@ -83,5 +87,6 @@ export type SmaeState = {
   addFoods: (foods: FoodRegistration[]) => void
   proposeAdjustment: () => void
   applyAdjustment: () => void
+  discardAdjustment: () => void
   resetDay: () => void
 }

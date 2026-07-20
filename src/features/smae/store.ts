@@ -1,8 +1,8 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { zustandMMKVStorage } from '@/lib/mmkv'
-import { GROUP_MACROS } from './data'
-import { GROUP_IDS, type SmaeState } from './types'
+import { proposeRebalance } from './daily-plan'
+import type { MealExchangeDelta, SmaeState } from './types'
 
 const mealNames = [
   'Desayuno',
@@ -18,8 +18,28 @@ const initial = () => ({
     exchanges: {},
   })),
   externalFoods: [],
+  appliedAdjustments: [] as MealExchangeDelta[],
 })
 const id = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+const mergeDeltas = (current: MealExchangeDelta[], incoming: MealExchangeDelta[]) => {
+  const merged = new Map<string, MealExchangeDelta>()
+  for (const delta of [
+    ...current,
+    ...incoming,
+  ]) {
+    const key = `${delta.mealId}:${delta.groupId}`
+    const existing = merged.get(key)
+    if (existing) existing.value += delta.value
+    else
+      merged.set(key, {
+        ...delta,
+      })
+  }
+  return [
+    ...merged.values(),
+  ].filter((delta) => Math.abs(delta.value) > 0.001)
+}
 
 export const useSmaeStore = create<SmaeState>()(
   persist(
@@ -38,6 +58,8 @@ export const useSmaeStore = create<SmaeState>()(
                 }
               : m,
           ),
+          appliedAdjustments: [],
+          adjustment: undefined,
         })),
       addMeal: (name) =>
         set((s) => ({
@@ -49,6 +71,7 @@ export const useSmaeStore = create<SmaeState>()(
               exchanges: {},
             },
           ],
+          adjustment: undefined,
         })),
       renameMeal: (mealId, name) =>
         set((s) => ({
@@ -68,6 +91,10 @@ export const useSmaeStore = create<SmaeState>()(
             : {
                 meals: s.meals.filter((m) => m.id !== mealId),
                 externalFoods: s.externalFoods.filter((f) => f.mealId !== mealId),
+                appliedAdjustments: (s.appliedAdjustments ?? []).filter(
+                  (adjustment) => adjustment.mealId !== mealId,
+                ),
+                adjustment: undefined,
               },
         ),
       addExternal: (food) =>
@@ -88,80 +115,27 @@ export const useSmaeStore = create<SmaeState>()(
         })),
       proposeAdjustment: () => {
         const s = get()
-        const fromExternals = s.externalFoods.reduce(
-          (a, f) => ({
-            kcal: a.kcal + (f.macro.kcal * f.eatenPortion) / f.referencePortion,
-            protein: a.protein + (f.macro.protein * f.eatenPortion) / f.referencePortion,
-            carbs: a.carbs + (f.macro.carbs * f.eatenPortion) / f.referencePortion,
-            fat: a.fat + (f.macro.fat * f.eatenPortion) / f.referencePortion,
-          }),
-          {
-            kcal: 0,
-            protein: 0,
-            carbs: 0,
-            fat: 0,
-          },
-        )
-        const unassigned = Math.max(
-          0,
-          fromExternals.kcal -
-            (fromExternals.protein * 4 + fromExternals.carbs * 4 + fromExternals.fat * 9),
-        )
-        let remaining = unassigned
-        const planned = (
-          groupId: typeof GROUP_IDS.cerealsWithoutFat | typeof GROUP_IDS.fatsWithoutProtein,
-        ) => s.meals.reduce((n, m) => n + (m.exchanges[groupId] ?? 0), 0)
-        const cereal = Math.min(
-          planned(GROUP_IDS.cerealsWithoutFat),
-          remaining / GROUP_MACROS[GROUP_IDS.cerealsWithoutFat].kcal,
-        )
-        remaining -= cereal * 70
-        const fat = Math.min(
-          planned(GROUP_IDS.fatsWithoutProtein),
-          remaining / GROUP_MACROS[GROUP_IDS.fatsWithoutProtein].kcal,
-        )
-        remaining -= fat * 45
+        const proposal = proposeRebalance(s.meals, s.externalFoods, s.appliedAdjustments ?? [])
         set({
           adjustment: {
             id: id(),
             createdAt: new Date().toISOString(),
-            delta: {
-              [GROUP_IDS.cerealsWithoutFat]: -cereal,
-              [GROUP_IDS.fatsWithoutProtein]: -fat,
-            },
-            unassignedKcal: unassigned,
-            remainingKcal: Math.max(0, remaining),
-            status: 'pending',
+            ...proposal,
           },
         })
       },
       applyAdjustment: () => {
-        const a = get().adjustment
-        if (!a || a.status !== 'pending') return
-        let leftC = -(a.delta[GROUP_IDS.cerealsWithoutFat] ?? 0),
-          leftF = -(a.delta[GROUP_IDS.fatsWithoutProtein] ?? 0)
+        const adjustment = get().adjustment
+        if (!adjustment) return
         set((s) => ({
-          adjustment: {
-            ...a,
-            status: 'applied',
-          },
-          meals: s.meals.map((m) => {
-            const c = Math.min(leftC, m.exchanges[GROUP_IDS.cerealsWithoutFat] ?? 0)
-            leftC -= c
-            const f = Math.min(leftF, m.exchanges[GROUP_IDS.fatsWithoutProtein] ?? 0)
-            leftF -= f
-            return {
-              ...m,
-              exchanges: {
-                ...m.exchanges,
-                [GROUP_IDS.cerealsWithoutFat]: (m.exchanges[GROUP_IDS.cerealsWithoutFat] ?? 0) - c,
-                [GROUP_IDS.fatsWithoutProtein]:
-                  (m.exchanges[GROUP_IDS.fatsWithoutProtein] ?? 0) - f,
-              },
-            }
-          }),
+          appliedAdjustments: mergeDeltas(s.appliedAdjustments ?? [], adjustment.deltas),
+          adjustment: undefined,
         }))
       },
+      discardAdjustment: () =>
+        set({
+          adjustment: undefined,
+        }),
       resetDay: () =>
         set({
           ...initial(),

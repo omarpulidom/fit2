@@ -9,43 +9,23 @@ import {
   BottomSheetModal,
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet'
+import { router } from 'expo-router'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import Svg, { Circle } from 'react-native-svg'
+import { projectDailyPlan } from '@/features/smae/daily-plan'
 import {
   CATALOG_BY_GROUP,
   CATALOG_SEARCH_INDEX,
-  GROUP_MACROS,
   GROUPS,
   getGroupLabel,
   normalizeCatalogSearch,
 } from '@/features/smae/data'
 import { type GroupedFood, groupFoods } from '@/features/smae/food-groups'
 import { useSmaeStore } from '@/features/smae/store'
-import {
-  type Food,
-  type FoodRegistration,
-  GROUP_IDS,
-  type Macro,
-  type SmaeGroupId,
-} from '@/features/smae/types'
+import type { Food, FoodRegistration, SmaeGroupId } from '@/features/smae/types'
 
-const sum = (items: Macro[]) =>
-  items.reduce(
-    (a, x) => ({
-      kcal: a.kcal + x.kcal,
-      protein: a.protein + x.protein,
-      carbs: a.carbs + x.carbs,
-      fat: a.fat + x.fat,
-    }),
-    {
-      kcal: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0,
-    },
-  )
 const n = (v: number) => `${Math.round(v)}`
 const decimal = (v: number) => `${Number(v.toFixed(1))}`
 const todayLabel = () => {
@@ -92,53 +72,20 @@ const portion = (quantity: number, unit: string) =>
   }).format(quantity)} ${quantity === 1 ? unit : (PLURAL_UNITS[unit] ?? unit)}`
 
 export default function HomeTab() {
-  const { meals, externalFoods, adjustment, addFoods, proposeAdjustment, applyAdjustment } =
-    useSmaeStore()
+  const { meals, externalFoods, appliedAdjustments, adjustment, addFoods } = useSmaeStore()
   const [modal, setModal] = useState(false)
-  const plan = useMemo(
-    () =>
-      sum(
-        meals.flatMap((m) =>
-          Object.entries(m.exchanges).map(([g, x]) => {
-            const macro = GROUP_MACROS[g as SmaeGroupId]
-            const q = x ?? 0
-            return macro
-              ? {
-                  kcal: macro.kcal * q,
-                  protein: macro.protein * q,
-                  carbs: macro.carbs * q,
-                  fat: macro.fat * q,
-                }
-              : {
-                  kcal: 0,
-                  protein: 0,
-                  carbs: 0,
-                  fat: 0,
-                }
-          }),
-        ),
-      ),
+  const projection = useMemo(
+    () => projectDailyPlan(meals, externalFoods, appliedAdjustments, adjustment?.deltas),
     [
+      adjustment?.deltas,
+      appliedAdjustments,
+      externalFoods,
       meals,
     ],
   )
-  const consumed = useMemo(
-    () =>
-      sum(
-        externalFoods.map((f) => {
-          const q = f.eatenPortion / f.referencePortion
-          return {
-            kcal: f.macro.kcal * q,
-            protein: f.macro.protein * q,
-            carbs: f.macro.carbs * q,
-            fat: f.macro.fat * q,
-          }
-        }),
-      ),
-    [
-      externalFoods,
-    ],
-  )
+  const plan = projection.base
+  const consumed = projection.consumed
+  const hasImbalance = Object.values(projection.residual).some((value) => Math.abs(value) > 0.1)
   const registeredMeals = useMemo(
     () =>
       meals.flatMap((meal) => {
@@ -270,45 +217,22 @@ export default function HomeTab() {
             ))
           )}
         </View>
-        <View className='bg-zinc-950 rounded-3xl p-5'>
-          <Text className='text-white font-geist-mono text-lg tracking-widest'>
-            REAJUSTE DINÁMICO
-          </Text>
-          <Text className='text-zinc-400 font-geist-mono text-base mt-2'>
-            Compensa kcal no asignadas con cereales sin grasa y grasas sin proteína. Tus grupos base
-            no se modifican.
-          </Text>
-          {adjustment?.status === 'pending' ? (
-            <View className='mt-4'>
-              <Text className='text-white font-geist-mono text-base'>
-                Propuesta: {n(-(adjustment.delta[GROUP_IDS.cerealsWithoutFat] ?? 0))} cereales y{' '}
-                {n(-(adjustment.delta[GROUP_IDS.fatsWithoutProtein] ?? 0))} grasas
+        {hasImbalance && (
+          <TouchableOpacity
+            onPress={() => router.navigate('/profile')}
+            className='bg-zinc-950 rounded-3xl p-5 flex-row items-center justify-between'
+          >
+            <View className='flex-1 pr-4'>
+              <Text className='text-white font-geist-mono text-lg tracking-widest'>
+                PLAN POR REVISAR
               </Text>
-              {adjustment.remainingKcal > 0 && (
-                <Text className='text-amber-300 font-geist-mono text-sm mt-2'>
-                  Quedan {n(adjustment.remainingKcal)} kcal sin compensar.
-                </Text>
-              )}
-              <TouchableOpacity
-                onPress={applyAdjustment}
-                className='bg-white rounded-full p-3 mt-4'
-              >
-                <Text className='text-zinc-950 font-geist-mono text-center text-base'>
-                  Aplicar propuesta
-                </Text>
-              </TouchableOpacity>
+              <Text className='text-zinc-400 font-geist-mono text-sm mt-2'>
+                Hay equivalentes pendientes de reajustar.
+              </Text>
             </View>
-          ) : (
-            <TouchableOpacity
-              onPress={proposeAdjustment}
-              className='border border-zinc-600 rounded-full p-3 mt-4'
-            >
-              <Text className='text-white font-geist-mono text-center text-base'>
-                Ver propuesta
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+            <Feather name='arrow-right' color='white' size={18} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
       <FoodModal visible={modal} close={closeModal} meals={meals} saveMeal={saveMeal} />
     </SafeAreaView>
