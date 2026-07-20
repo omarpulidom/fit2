@@ -21,6 +21,7 @@ import {
   getGroupLabel,
   normalizeCatalogSearch,
 } from '@/features/smae/data'
+import { type GroupedFood, groupFoods } from '@/features/smae/food-groups'
 import { useSmaeStore } from '@/features/smae/store'
 import {
   type Food,
@@ -138,6 +139,24 @@ export default function HomeTab() {
       externalFoods,
     ],
   )
+  const registeredMeals = useMemo(
+    () =>
+      meals.flatMap((meal) => {
+        const foods = groupFoods(externalFoods.filter((food) => food.mealId === meal.id))
+        return foods.length
+          ? [
+              {
+                meal,
+                foods,
+              },
+            ]
+          : []
+      }),
+    [
+      externalFoods,
+      meals,
+    ],
+  )
   const closeModal = () => setModal(false)
   const saveMeal = (foods: FoodRegistration[]) => {
     addFoods(foods)
@@ -239,27 +258,14 @@ export default function HomeTab() {
               Aún no registras alimentos. Añade un alimento SMAE desde tu plan o uno externo aquí.
             </Text>
           ) : (
-            externalFoods.map((f) => (
-              <View
-                key={f.id}
-                className='py-3 border-t border-zinc-100 flex-row justify-between items-start'
-              >
-                <View className='flex-1 min-w-0 pr-2'>
-                  <Text className='font-geist-mono text-base text-zinc-900'>{f.name}</Text>
-                  <Text className='font-geist-mono text-sm text-zinc-500'>
-                    {meals.find((m) => m.id === f.mealId)?.name} ·{' '}
-                    {f.source === 'smae'
-                      ? f.smaeGroupId
-                        ? getGroupLabel(f.smaeGroupId)
-                        : 'SMAE'
-                      : f.mode === 'macros'
-                        ? 'macros completos'
-                        : 'solo kcal'}
-                  </Text>
-                </View>
-                <Text className='font-geist-mono text-base shrink-0 text-right'>
-                  {n((f.macro.kcal * f.eatenPortion) / f.referencePortion)} kcal
+            registeredMeals.map(({ meal, foods }) => (
+              <View key={meal.id} className='border-t border-zinc-100 pt-4 mt-4'>
+                <Text className='font-geist-mono text-sm tracking-widest text-zinc-500 mb-1'>
+                  {meal.name.toLocaleUpperCase()}
                 </Text>
+                {foods.map((food) => (
+                  <LoggedFoodRow key={food.key} food={food} />
+                ))}
               </View>
             ))
           )}
@@ -374,6 +380,38 @@ function MacroProgressCard({
   )
 }
 
+function LoggedFoodRow({ food }: { food: GroupedFood }) {
+  const isMacroKnown = food.food.source !== 'external' || food.food.mode === 'macros'
+  const detail = food.catalogFood
+    ? `${getGroupLabel(food.catalogFood.groupId)} · ${portion(
+        food.eatenPortion * food.catalogFood.quantity,
+        food.catalogFood.unit,
+      )}`
+    : food.food.smaeGroupId
+      ? getGroupLabel(food.food.smaeGroupId)
+      : `Externo · ${n(food.macro.kcal)} kcal`
+
+  return (
+    <View className='py-3 border-t border-zinc-100 flex-row justify-between items-start'>
+      <View className='flex-1 min-w-0 pr-2'>
+        <Text className='font-geist-mono text-base text-zinc-900'>
+          {food.food.name}
+          {food.count > 1 ? ` × ${food.count}` : ''}
+        </Text>
+        <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>{detail}</Text>
+        <Text className='font-geist-mono text-sm text-zinc-400 mt-1'>
+          {isMacroKnown
+            ? `P ${decimal(food.macro.protein)}g | C ${decimal(food.macro.carbs)}g | G ${decimal(food.macro.fat)}g`
+            : 'P — | C — | G —'}
+        </Text>
+      </View>
+      <Text className='font-geist-mono text-base shrink-0 text-right'>
+        {n(food.macro.kcal)} kcal
+      </Text>
+    </View>
+  )
+}
+
 type ExternalFoodForm = {
   name: string
   kcal: string
@@ -386,16 +424,6 @@ type ExternalFoodForm = {
 
 type DraftFood = FoodRegistration & {
   draftId: string
-  servingQuantity?: number
-  servingUnit?: string
-}
-
-type DraftFoodGroup = {
-  key: string
-  food: DraftFood
-  draftIds: string[]
-  totalEquivalents: number
-  totalEatenPortion: number
 }
 
 const emptyExternalFoodForm = (): ExternalFoodForm => ({
@@ -535,14 +563,13 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
         draftId: `${selectedFood.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: selectedFood.name,
         source: 'smae',
+        catalogFoodId: selectedFood.id,
         smaeGroupId: selectedFood.groupId,
         mode: 'macros',
         mealId,
         referencePortion: 1,
         eatenPortion: equivalents,
         macro: selectedFood.perExchange,
-        servingQuantity: selectedFood.quantity,
-        servingUnit: selectedFood.unit,
       },
     ])
     setSelectedFood(null)
@@ -563,7 +590,6 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
         mealId,
         referencePortion: Number(form.ref),
         eatenPortion: Number(form.eaten),
-        catalogFoodId: selectedFood.id,
         macro: {
           kcal: Number(form.kcal),
           protein: mode === 'macros' ? Number(form.protein) : 0,
@@ -589,16 +615,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
   ])
   const registerMeal = useCallback(() => {
     if (!draft.length) return
-    saveMeal(
-      draft.map(
-        ({
-          draftId: _draftId,
-          servingQuantity: _servingQuantity,
-          servingUnit: _servingUnit,
-          ...food
-        }) => food,
-      ),
-    )
+    saveMeal(draft.map(({ draftId: _draftId, ...food }) => food))
   }, [
     draft,
     saveMeal,
@@ -966,31 +983,7 @@ function DraftSummary({
   mealName: string
   onRemove: (draftId: string) => void
 }) {
-  const groups = draft.reduce<DraftFoodGroup[]>((result, food) => {
-    const key =
-      food.source === 'smae'
-        ? `smae:${food.smaeGroupId}:${food.name}:${food.servingQuantity}:${food.servingUnit}`
-        : `external:${food.name}:${food.mode}:${food.referencePortion}:${food.macro.kcal}:${food.macro.protein}:${food.macro.carbs}:${food.macro.fat}`
-    const group = result.find((item) => item.key === key)
-
-    if (group) {
-      group.draftIds.push(food.draftId)
-      group.totalEquivalents += food.source === 'smae' ? food.eatenPortion : 0
-      group.totalEatenPortion += food.eatenPortion
-      return result
-    }
-
-    result.push({
-      key,
-      food,
-      draftIds: [
-        food.draftId,
-      ],
-      totalEquivalents: food.source === 'smae' ? food.eatenPortion : 0,
-      totalEatenPortion: food.eatenPortion,
-    })
-    return result
-  }, [])
+  const groups = groupFoods(draft)
 
   return (
     <View className='bg-zinc-950 rounded-3xl p-4 mb-4'>
@@ -1011,19 +1004,22 @@ function DraftSummary({
           <View className='flex-1 pr-3'>
             <Text className='font-geist-mono text-base text-white' numberOfLines={1}>
               {group.food.name}
-              {group.draftIds.length > 1 ? ` × ${group.draftIds.length}` : ''}
+              {group.count > 1 ? ` × ${group.count}` : ''}
             </Text>
             <Text className='font-geist-mono text-sm text-zinc-400 mt-1'>
-              {group.food.source === 'smae'
-                ? `${group.food.smaeGroupId ? getGroupLabel(group.food.smaeGroupId) : 'SMAE'} · ${portion(
-                    group.totalEquivalents * (group.food.servingQuantity ?? 1),
-                    group.food.servingUnit ?? 'porción',
+              {group.catalogFood
+                ? `${getGroupLabel(group.catalogFood.groupId)} · ${portion(
+                    group.eatenPortion * group.catalogFood.quantity,
+                    group.catalogFood.unit,
                   )}`
-                : `Externo · ${n((group.food.macro.kcal * group.totalEatenPortion) / group.food.referencePortion)} kcal`}
+                : `Externo · ${n(group.macro.kcal)} kcal`}
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => onRemove(group.draftIds.at(-1) ?? group.draftIds[0])}
+            onPress={() => {
+              const item = group.items.at(-1) as DraftFood | undefined
+              if (item) onRemove(item.draftId)
+            }}
             accessibilityLabel={`Quitar una porción de ${group.food.name}`}
             hitSlop={8}
             className='w-9 h-9 rounded-full bg-zinc-800 items-center justify-center'
