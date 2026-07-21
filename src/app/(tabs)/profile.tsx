@@ -183,6 +183,17 @@ function DailyPlanView({
 }
 
 function PlanMatrix({ projection }: { projection: ReturnType<typeof projectDailyPlan> }) {
+  if (projection.groups.length === 0) {
+    return (
+      <View className='mx-5 bg-white border border-zinc-100 rounded-3xl p-5'>
+        <Text className='font-geist-mono text-base text-zinc-500'>
+          Aún no hay equivalentes configurados. Edita tu plan para comenzar a ver el saldo por
+          grupo y comida.
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <ScrollView
       horizontal
