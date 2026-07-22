@@ -1,8 +1,9 @@
 import { Feather } from '@expo/vector-icons'
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { Alert, DevSettings, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
+import { WARNING_CLEAR_ALL_MMKVS_INSTANCES } from '@/lib/mmkv/stores'
 import { type DailyPlanCell, projectDailyPlan } from '@/features/smae/daily-plan'
 import { GROUP_MACROS, GROUPS, getGroupLabel } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
@@ -46,7 +47,7 @@ export default function PlanTab() {
   const askResetDay = () =>
     Alert.alert(
       'Reiniciar día',
-      'Se borrarán tus registros y se restablecerán las comidas y equivalentes del día.',
+      'Se borrarán los alimentos registrados y se conservarán tus comidas y equivalentes.',
       [
         {
           text: 'Cancelar',
@@ -56,6 +57,26 @@ export default function PlanTab() {
           text: 'Reiniciar',
           style: 'destructive',
           onPress: resetDay,
+        },
+      ],
+    )
+
+  const askClearMMKV = () =>
+    Alert.alert(
+      'Borrar datos locales',
+      'Esto eliminará todos los datos guardados en MMKV y reiniciará la app. Solo úsalo durante desarrollo.',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Borrar todo',
+          style: 'destructive',
+          onPress: () => {
+            WARNING_CLEAR_ALL_MMKVS_INSTANCES()
+            DevSettings.reload()
+          },
         },
       ],
     )
@@ -75,7 +96,6 @@ export default function PlanTab() {
           setExchange={setExchange}
           close={() => setEditing(false)}
           openManager={() => setManagerOpen(true)}
-          resetDay={askResetDay}
         />
       ) : (
         <DailyPlanView
@@ -86,6 +106,8 @@ export default function PlanTab() {
           proposeAdjustment={proposeAdjustment}
           applyAdjustment={applyAdjustment}
           discardAdjustment={discardAdjustment}
+          resetDay={askResetDay}
+          clearMMKV={askClearMMKV}
         />
       )}
       <MealManager
@@ -110,6 +132,8 @@ type DailyPlanViewProps = {
   proposeAdjustment: () => void
   applyAdjustment: () => void
   discardAdjustment: () => void
+  resetDay: () => void
+  clearMMKV: () => void
 }
 
 function DailyPlanView({
@@ -120,6 +144,8 @@ function DailyPlanView({
   proposeAdjustment,
   applyAdjustment,
   discardAdjustment,
+  resetDay,
+  clearMMKV,
 }: DailyPlanViewProps) {
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName='pb-6'>
@@ -180,6 +206,25 @@ function DailyPlanView({
         applyAdjustment={applyAdjustment}
         discardAdjustment={discardAdjustment}
       />
+
+      <View className='mx-5 mt-5'>
+        <TouchableOpacity
+          onPress={resetDay}
+          className='border border-zinc-300 rounded-full px-4 py-3 flex-row items-center justify-center gap-2'
+        >
+          <Feather name='rotate-ccw' size={15} color='#52525b' />
+          <Text className='font-geist-mono text-sm text-zinc-600'>Reiniciar día</Text>
+        </TouchableOpacity>
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={clearMMKV}
+            className='mt-3 border border-red-200 rounded-full px-4 py-3 flex-row items-center justify-center gap-2'
+          >
+            <Feather name='trash-2' size={15} color='#b91c1c' />
+            <Text className='font-geist-mono text-sm text-red-700'>DEV · Borrar datos locales</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </ScrollView>
   )
 }
@@ -441,10 +486,9 @@ type PlanEditorProps = {
   setExchange: (mealId: string, groupId: SmaeGroupId, value: number) => void
   close: () => void
   openManager: () => void
-  resetDay: () => void
 }
 
-function PlanEditor({ meals, setExchange, close, openManager, resetDay }: PlanEditorProps) {
+function PlanEditor({ meals, setExchange, close, openManager }: PlanEditorProps) {
   const [activeMealId, setActiveMealId] = useState(meals[0]?.id ?? '')
   const activeMeal = meals.find((meal) => meal.id === activeMealId) ?? meals[0]
 
@@ -545,13 +589,6 @@ function PlanEditor({ meals, setExchange, close, openManager, resetDay }: PlanEd
           </View>
         ))}
       </View>
-      <TouchableOpacity
-        onPress={resetDay}
-        className='mx-5 mt-4 border border-zinc-300 rounded-full px-4 py-3 flex-row items-center justify-center gap-2'
-      >
-        <Feather name='rotate-ccw' size={15} color='#52525b' />
-        <Text className='font-geist-mono text-sm text-zinc-600'>Reiniciar día</Text>
-      </TouchableOpacity>
     </ScrollView>
   )
 }

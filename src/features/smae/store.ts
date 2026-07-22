@@ -138,7 +138,8 @@ export const useSmaeStore = create<SmaeState>()(
         }),
       resetDay: () =>
         set({
-          ...initial(),
+          externalFoods: [],
+          appliedAdjustments: [],
           adjustment: undefined,
         }),
     }),
