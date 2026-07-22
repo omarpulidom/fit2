@@ -194,7 +194,7 @@ export default function HomeTab() {
           <View className='flex-1 min-w-0 p-4' />
         </View>
         <View className='bg-white rounded-3xl p-5 border border-zinc-100 mb-4'>
-          <View className='flex-row justify-between items-center mb-2'>
+          <View className='flex-row justify-between items-center'>
             <Text className='font-geist-mono text-lg text-zinc-950 tracking-widest'>REGISTRO</Text>
             <Text className='font-geist-mono text-sm text-zinc-400'>
               {externalFoods.length} alimentos
@@ -206,10 +206,15 @@ export default function HomeTab() {
             </Text>
           ) : (
             registeredMeals.map(({ meal, foods }) => (
-              <View key={meal.id} className='border-t border-zinc-100 pt-4 mt-4'>
-                <Text className='font-geist-mono text-sm tracking-widest text-zinc-500 mb-1'>
-                  {meal.name.toLocaleUpperCase()}
-                </Text>
+              <View key={meal.id} className='border-t border-zinc-100 pt-3 mt-2'>
+                <View className='flex-row justify-between items-center mb-1'>
+                  <Text className='font-geist-mono text-sm tracking-widest text-zinc-500'>
+                    {meal.name.toLocaleUpperCase()}
+                  </Text>
+                  <Text className='font-geist-mono text-sm text-zinc-400'>
+                    {n(foods.reduce((total, food) => total + food.macro.kcal, 0))} kcal
+                  </Text>
+                </View>
                 {foods.map((food) => (
                   <LoggedFoodRow key={food.key} food={food} />
                 ))}
