@@ -17,6 +17,7 @@ export type DailyPlanCell = {
   consumed: number
   applied: number
   pending: number
+  after: number
   before: number
   remaining: number
   adjustable: boolean
@@ -138,6 +139,7 @@ export const projectDailyPlan = (
       const consumedValue = consumed.get(keyFor(meal.id, groupId)) ?? 0
       const before = Math.max(0, planned + appliedValue - consumedValue)
       const value = Math.max(0, before + pendingValue)
+      const after = Math.max(0, planned + appliedValue + pendingValue)
 
       base = add(base, macroFor(groupId, planned))
       if (adjustable) remaining = add(remaining, macroFor(groupId, value))
@@ -149,6 +151,7 @@ export const projectDailyPlan = (
         consumed: consumedValue,
         applied: appliedValue,
         pending: pendingValue,
+        after,
         before,
         remaining: value,
         adjustable,
@@ -209,7 +212,7 @@ export const proposeRebalance = (
   let remaining = projection.remaining
   let currentScore = score(remaining, projection.target)
   const available = projection.meals.flatMap(({ cells }) =>
-    cells.filter((cell) => cell.adjustable && cell.before >= STEP),
+    cells.filter((cell) => cell.adjustable && (cell.planned > 0 || cell.applied !== 0)),
   )
 
   for (let iteration = 0; iteration < 1_000; iteration += 1) {

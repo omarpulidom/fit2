@@ -406,16 +406,10 @@ function MealPlanRow({ cell }: { cell: DailyPlanCell }) {
 }
 
 function cellTransition(cell: DailyPlanCell) {
-  if (Math.abs(cell.pending) > 0.001) {
+  if (Math.abs(cell.applied) > 0.001 || Math.abs(cell.pending) > 0.001) {
     return {
-      from: cell.before,
-      to: cell.remaining,
-    }
-  }
-  if (Math.abs(cell.applied) > 0.001) {
-    return {
-      from: Math.max(0, cell.planned - cell.consumed),
-      to: cell.before,
+      from: cell.planned,
+      to: cell.after,
     }
   }
   return undefined
@@ -463,7 +457,7 @@ function AdjustmentPanel({
     <View className='mx-5 mt-5 bg-zinc-950 rounded-3xl p-5'>
       <View className='flex-row items-center justify-between gap-3'>
         <Text className='font-geist-mono text-lg tracking-widest text-white'>REAJUSTE</Text>
-        {hasAppliedAdjustment && (
+        {showAppliedSummary && (
           <View className='bg-emerald-400/15 border border-emerald-400/30 rounded-full px-2.5 py-1'>
             <Text className='font-geist-mono text-xs tracking-wide text-emerald-300'>APLICADO</Text>
           </View>
@@ -487,8 +481,8 @@ function AdjustmentPanel({
                 <View key={meal.id} className='border-t border-zinc-700 pt-3 mt-3'>
                   <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
                   <MacroTransition
-                    before={macroTotal(cells, 'before')}
-                    after={macroTotal(cells, 'remaining')}
+                    before={macroTotal(cells, 'planned')}
+                    after={macroTotal(cells, 'after')}
                   />
                 </View>
               ))}
@@ -570,7 +564,7 @@ function AppliedAdjustmentSummary({
   )
 }
 
-function macroTotal(cells: DailyPlanCell[], value: 'before' | 'remaining'): Macro {
+function macroTotal(cells: DailyPlanCell[], value: 'planned' | 'before' | 'remaining' | 'after'): Macro {
   return cells.reduce<Macro>(
     (total, cell) => {
       const macro = GROUP_MACROS[cell.groupId]
