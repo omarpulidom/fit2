@@ -1,6 +1,14 @@
 import { Feather } from '@expo/vector-icons'
 import { useEffect, useMemo, useState } from 'react'
-import { Alert, DevSettings, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import {
+  Alert,
+  DevSettings,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import { WARNING_CLEAR_ALL_MMKVS_INSTANCES } from '@/lib/mmkv/stores'
@@ -19,6 +27,7 @@ export default function PlanTab() {
     meals,
     externalFoods,
     appliedAdjustments,
+    appliedAdjustmentAt,
     adjustment,
     setExchange,
     addMeal,
@@ -43,6 +52,12 @@ export default function PlanTab() {
     ],
   )
   const hasImbalance = Object.values(projection.residual).some((value) => Math.abs(value) > 0.1)
+  const hasChangesSinceApplied = Boolean(
+    appliedAdjustmentAt &&
+      externalFoods.some(
+        (food) => new Date(food.createdAt).getTime() > new Date(appliedAdjustmentAt).getTime(),
+      ),
+  )
 
   const askResetDay = () =>
     Alert.alert(
@@ -102,6 +117,8 @@ export default function PlanTab() {
           projection={projection}
           hasImbalance={hasImbalance}
           adjustment={activeAdjustment}
+          hasAppliedAdjustment={appliedAdjustments.length > 0}
+          hasChangesSinceApplied={hasChangesSinceApplied}
           openEditor={() => setEditing(true)}
           proposeAdjustment={proposeAdjustment}
           applyAdjustment={applyAdjustment}
@@ -128,6 +145,8 @@ type DailyPlanViewProps = {
   projection: ReturnType<typeof projectDailyPlan>
   hasImbalance: boolean
   adjustment: ReturnType<typeof useSmaeStore.getState>['adjustment']
+  hasAppliedAdjustment: boolean
+  hasChangesSinceApplied: boolean
   openEditor: () => void
   proposeAdjustment: () => void
   applyAdjustment: () => void
@@ -140,6 +159,8 @@ function DailyPlanView({
   projection,
   hasImbalance,
   adjustment,
+  hasAppliedAdjustment,
+  hasChangesSinceApplied,
   openEditor,
   proposeAdjustment,
   applyAdjustment,
@@ -200,8 +221,10 @@ function DailyPlanView({
 
       <AdjustmentPanel
         adjustment={adjustment}
+        hasAppliedAdjustment={hasAppliedAdjustment}
+        hasChangesSinceApplied={hasChangesSinceApplied}
         hasImbalance={hasImbalance}
-        residual={projection.residual}
+        projection={projection}
         proposeAdjustment={proposeAdjustment}
         applyAdjustment={applyAdjustment}
         discardAdjustment={discardAdjustment}
@@ -274,8 +297,8 @@ function PlanMatrix({ projection }: { projection: ReturnType<typeof projectDaily
     return (
       <View className='mx-5 bg-white border border-zinc-100 rounded-3xl p-5'>
         <Text className='font-geist-mono text-base text-zinc-500'>
-          Aún no hay equivalentes configurados. Edita tu plan para comenzar a ver el saldo por
-          grupo y comida.
+          Aún no hay equivalentes configurados. Edita tu plan para comenzar a ver el saldo por grupo
+          y comida.
         </Text>
       </View>
     )
@@ -400,8 +423,10 @@ function cellTransition(cell: DailyPlanCell) {
 
 type AdjustmentPanelProps = {
   adjustment: ReturnType<typeof useSmaeStore.getState>['adjustment']
+  hasAppliedAdjustment: boolean
+  hasChangesSinceApplied: boolean
   hasImbalance: boolean
-  residual: Macro
+  projection: ReturnType<typeof projectDailyPlan>
   proposeAdjustment: () => void
   applyAdjustment: () => void
   discardAdjustment: () => void
@@ -409,26 +434,74 @@ type AdjustmentPanelProps = {
 
 function AdjustmentPanel({
   adjustment,
+  hasAppliedAdjustment,
+  hasChangesSinceApplied,
   hasImbalance,
-  residual,
+  projection,
   proposeAdjustment,
   applyAdjustment,
   discardAdjustment,
 }: AdjustmentPanelProps) {
+  const changedMeals = projection.meals.filter(({ cells }) =>
+    cells.some((cell) => Math.abs(cell.pending) > 0.001),
+  )
+  const hasProposalDeltas = changedMeals.length > 0
+  const registeredMeals = projection.meals
+    .map(({ meal, planned, consumed }) => ({
+      meal,
+      planned,
+      consumed,
+      excess: positiveMacro(subtractMacro(consumed, planned)),
+    }))
+    .filter(({ consumed }) => hasMacroValue(consumed))
+  const adjustableCells = projection.meals.flatMap(({ cells }) =>
+    cells.filter((cell) => cell.adjustable),
+  )
+  const showAppliedSummary = hasAppliedAdjustment && !hasChangesSinceApplied && !adjustment
+
   return (
     <View className='mx-5 mt-5 bg-zinc-950 rounded-3xl p-5'>
-      <Text className='font-geist-mono text-lg tracking-widest text-white'>REAJUSTE</Text>
-      {adjustment ? (
-        adjustment.deltas.length ? (
+      <View className='flex-row items-center justify-between gap-3'>
+        <Text className='font-geist-mono text-lg tracking-widest text-white'>REAJUSTE</Text>
+        {hasAppliedAdjustment && (
+          <View className='bg-emerald-400/15 border border-emerald-400/30 rounded-full px-2.5 py-1'>
+            <Text className='font-geist-mono text-xs tracking-wide text-emerald-300'>APLICADO</Text>
+          </View>
+        )}
+      </View>
+      {showAppliedSummary ? (
+        <AppliedAdjustmentSummary projection={projection} />
+      ) : adjustment ? (
+        hasProposalDeltas ? (
           <>
-            <Text className='font-geist-mono text-base text-zinc-300 mt-2'>
-              Propuesta para {adjustment.deltas.length} saldo
-              {adjustment.deltas.length === 1 ? '' : 's'} de equivalentes.
-            </Text>
-            <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
-              Diferencia restante: P {number(residual.protein)}g | C {number(residual.carbs)}g | G{' '}
-              {number(residual.fat)}g | {number(residual.kcal)} kcal
-            </Text>
+            <AdjustmentContext
+              projection={projection}
+              registeredMeals={registeredMeals}
+              afterDay={addMacro(projection.consumed, projection.remaining)}
+            />
+            <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-5'>
+              <Text className='font-geist-mono text-sm tracking-widest text-white'>
+                AJUSTES PROPUESTOS
+              </Text>
+              {changedMeals.map(({ meal, cells }) => (
+                <View key={meal.id} className='border-t border-zinc-700 pt-3 mt-3'>
+                  <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
+                  <MacroTransition
+                    before={macroTotal(cells, 'before')}
+                    after={macroTotal(cells, 'remaining')}
+                  />
+                </View>
+              ))}
+            </View>
+            <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-4'>
+              <Text className='font-geist-mono text-sm tracking-widest text-white'>
+                EQUIVALENTES RESTANTES
+              </Text>
+              <MacroTransition
+                before={macroTotal(adjustableCells, 'before')}
+                after={macroTotal(adjustableCells, 'remaining')}
+              />
+            </View>
             <View className='flex-row gap-2 mt-4'>
               <TouchableOpacity
                 onPress={discardAdjustment}
@@ -446,12 +519,9 @@ function AdjustmentPanel({
           </>
         ) : (
           <>
+            <AdjustmentContext projection={projection} registeredMeals={registeredMeals} />
             <Text className='font-geist-mono text-base text-zinc-300 mt-2'>
               No hay equivalentes pendientes que puedan compensar este desfase.
-            </Text>
-            <Text className='font-geist-mono text-sm text-zinc-400 mt-2'>
-              Diferencia restante: P {number(residual.protein)}g | C {number(residual.carbs)}g | G{' '}
-              {number(residual.fat)}g | {number(residual.kcal)} kcal
             </Text>
             <TouchableOpacity
               onPress={discardAdjustment}
@@ -463,8 +533,9 @@ function AdjustmentPanel({
         )
       ) : hasImbalance ? (
         <>
+          <AdjustmentContext projection={projection} registeredMeals={registeredMeals} />
           <Text className='font-geist-mono text-base text-zinc-300 mt-2'>
-            Hay un desfase entre lo consumido y tu plan base.
+            Crea una propuesta para compensar el desfase con equivalentes de comidas posteriores.
           </Text>
           <TouchableOpacity onPress={proposeAdjustment} className='bg-white rounded-full py-3 mt-4'>
             <Text className='font-geist-mono text-sm text-center text-zinc-950'>
@@ -477,6 +548,164 @@ function AdjustmentPanel({
           El plan restante coincide con lo registrado hasta ahora.
         </Text>
       )}
+    </View>
+  )
+}
+
+function AppliedAdjustmentSummary({
+  projection,
+}: {
+  projection: ReturnType<typeof projectDailyPlan>
+}) {
+  return (
+    <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-4'>
+      <Text className='font-geist-mono text-sm tracking-widest text-white'>
+        PLAN DEL DÍA REAJUSTADO
+      </Text>
+      <MacroTransition
+        before={projection.base}
+        after={addMacro(projection.consumed, projection.remaining)}
+      />
+    </View>
+  )
+}
+
+function macroTotal(cells: DailyPlanCell[], value: 'before' | 'remaining'): Macro {
+  return cells.reduce<Macro>(
+    (total, cell) => {
+      const macro = GROUP_MACROS[cell.groupId]
+      return {
+        kcal: total.kcal + macro.kcal * cell[value],
+        protein: total.protein + macro.protein * cell[value],
+        carbs: total.carbs + macro.carbs * cell[value],
+        fat: total.fat + macro.fat * cell[value],
+      }
+    },
+    {
+      kcal: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    },
+  )
+}
+
+function addMacro(left: Macro, right: Macro): Macro {
+  return {
+    kcal: left.kcal + right.kcal,
+    protein: left.protein + right.protein,
+    carbs: left.carbs + right.carbs,
+    fat: left.fat + right.fat,
+  }
+}
+
+function AdjustmentContext({
+  projection,
+  registeredMeals,
+  afterDay,
+}: {
+  projection: ReturnType<typeof projectDailyPlan>
+  registeredMeals: Array<{
+    meal: Meal
+    planned: Macro
+    consumed: Macro
+    excess: Macro
+  }>
+  afterDay?: Macro
+}) {
+  const remaining = positiveMacro(projection.target)
+  const exceeded = positiveMacro({
+    kcal: -projection.target.kcal,
+    protein: -projection.target.protein,
+    carbs: -projection.target.carbs,
+    fat: -projection.target.fat,
+  })
+  return (
+    <>
+      <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-4'>
+        <Text className='font-geist-mono text-sm tracking-widest text-white'>PLAN DEL DÍA</Text>
+        {afterDay ? (
+          <MacroTransition before={projection.base} after={afterDay} />
+        ) : (
+          <MacroLine values={projection.base} light />
+        )}
+      </View>
+      {registeredMeals.length > 0 && (
+        <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-4'>
+          <Text className='font-geist-mono text-sm tracking-widest text-white'>
+            COMIDAS REGISTRADAS
+          </Text>
+          {registeredMeals.map(({ meal, planned, consumed, excess }) => (
+            <View key={meal.id} className='border-t border-zinc-700 pt-3 mt-3'>
+              <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
+              <MacroTransition before={planned} after={consumed} />
+              {hasMacroValue(excess) && (
+                <>
+                  <Text className='font-geist-mono text-xs tracking-widest text-amber-300 mt-3'>
+                    POR COMPENSAR
+                  </Text>
+                  <MacroLine values={excess} light />
+                </>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+      <View className='-mx-2 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 mt-4'>
+        <Text className='font-geist-mono text-sm tracking-widest text-white'>BALANCE DEL DÍA</Text>
+        <Text className='font-geist-mono text-xs tracking-widest text-zinc-500 mt-4'>
+          CONSUMIDO
+        </Text>
+        <MacroLine values={projection.consumed} light />
+        <Text className='font-geist-mono text-xs tracking-widest text-zinc-500 mt-4'>
+          OBJETIVO RESTANTE
+        </Text>
+        <MacroLine values={remaining} light />
+        {hasMacroValue(exceeded) && (
+          <>
+            <Text className='font-geist-mono text-xs tracking-widest text-amber-300 mt-3'>
+              EXCEDIDO
+            </Text>
+            <MacroLine values={exceeded} light />
+          </>
+        )}
+      </View>
+    </>
+  )
+}
+
+function subtractMacro(left: Macro, right: Macro): Macro {
+  return {
+    kcal: left.kcal - right.kcal,
+    protein: left.protein - right.protein,
+    carbs: left.carbs - right.carbs,
+    fat: left.fat - right.fat,
+  }
+}
+
+function positiveMacro(values: Macro): Macro {
+  return {
+    kcal: Math.max(0, values.kcal),
+    protein: Math.max(0, values.protein),
+    carbs: Math.max(0, values.carbs),
+    fat: Math.max(0, values.fat),
+  }
+}
+
+function hasMacroValue(values: Macro) {
+  return Object.values(values).some((value) => value > 0.1)
+}
+
+function MacroTransition({ before, after }: { before: Macro; after: Macro }) {
+  return (
+    <View className='mt-3'>
+      <Text className='font-geist-mono text-xs text-zinc-400'>
+        {number(before.kcal)} kcal → {number(after.kcal)} kcal
+      </Text>
+      <Text className='font-geist-mono text-xs text-zinc-400 mt-1'>
+        P {number(before.protein)}g → {number(after.protein)}g | C {number(before.carbs)}g →{' '}
+        {number(after.carbs)}g | G {number(before.fat)}g → {number(after.fat)}g
+      </Text>
     </View>
   )
 }
