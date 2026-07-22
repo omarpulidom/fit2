@@ -114,9 +114,14 @@ export const useSmaeStore = create<SmaeState>()(
           ],
           adjustment: undefined,
         })),
-      proposeAdjustment: () => {
+      proposeAdjustment: (mealIds) => {
         const s = get()
-        const proposal = proposeRebalance(s.meals, s.externalFoods, s.appliedAdjustments ?? [])
+        const proposal = proposeRebalance(
+          s.meals,
+          s.externalFoods,
+          s.appliedAdjustments ?? [],
+          mealIds,
+        )
         set({
           adjustment: {
             id: id(),

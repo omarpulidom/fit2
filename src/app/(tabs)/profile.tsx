@@ -148,7 +148,7 @@ type DailyPlanViewProps = {
   hasAppliedAdjustment: boolean
   hasChangesSinceApplied: boolean
   openEditor: () => void
-  proposeAdjustment: () => void
+  proposeAdjustment: (mealIds?: string[]) => void
   applyAdjustment: () => void
   discardAdjustment: () => void
   resetDay: () => void
@@ -421,7 +421,7 @@ type AdjustmentPanelProps = {
   hasChangesSinceApplied: boolean
   hasImbalance: boolean
   projection: ReturnType<typeof projectDailyPlan>
-  proposeAdjustment: () => void
+  proposeAdjustment: (mealIds?: string[]) => void
   applyAdjustment: () => void
   discardAdjustment: () => void
 }
@@ -451,7 +451,37 @@ function AdjustmentPanel({
   const adjustableCells = projection.meals.flatMap(({ cells }) =>
     cells.filter((cell) => cell.adjustable),
   )
+  const compensableMeals = useMemo(
+    () =>
+      projection.meals.filter(
+        ({ cells }) =>
+          cells.some((cell) => cell.adjustable) &&
+          cells.some((cell) => cell.planned > 0 || Math.abs(cell.applied) > 0.001),
+      ),
+    [
+      projection.meals,
+    ],
+  )
+  const [selectedMealIds, setSelectedMealIds] = useState<string[]>([])
   const showAppliedSummary = hasAppliedAdjustment && !hasChangesSinceApplied && !adjustment
+  const canCreateProposal = selectedMealIds.length > 0
+
+  useEffect(() => {
+    const compensableMealIds = new Set(compensableMeals.map(({ meal }) => meal.id))
+    setSelectedMealIds((current) => current.filter((mealId) => compensableMealIds.has(mealId)))
+  }, [
+    compensableMeals,
+  ])
+
+  const toggleCompensableMeal = (mealId: string) =>
+    setSelectedMealIds((current) =>
+      current.includes(mealId)
+        ? current.filter((selectedMealId) => selectedMealId !== mealId)
+        : [
+            ...current,
+            mealId,
+          ],
+    )
 
   return (
     <View className='mx-5 mt-5 bg-zinc-950 rounded-3xl p-5'>
@@ -529,10 +559,46 @@ function AdjustmentPanel({
         <>
           <AdjustmentContext projection={projection} registeredMeals={registeredMeals} />
           <Text className='font-geist-mono text-base text-zinc-300 mt-2'>
-            Crea una propuesta para compensar el desfase con equivalentes de comidas posteriores.
+            Elige en qué comidas quieres compensar el desfase.
           </Text>
-          <TouchableOpacity onPress={proposeAdjustment} className='bg-white rounded-full py-3 mt-4'>
-            <Text className='font-geist-mono text-sm text-center text-zinc-950'>
+          {compensableMeals.length > 0 ? (
+            <View className='flex-row flex-wrap gap-2 mt-4'>
+              {compensableMeals.map(({ meal }) => {
+                const selected = selectedMealIds.includes(meal.id)
+                return (
+                  <TouchableOpacity
+                    key={meal.id}
+                    onPress={() => toggleCompensableMeal(meal.id)}
+                    className={`rounded-full border px-3 py-2 ${
+                      selected ? 'bg-white border-white' : 'border-zinc-700'
+                    }`}
+                  >
+                    <Text
+                      className={`font-geist-mono text-xs ${
+                        selected ? 'text-zinc-950' : 'text-zinc-300'
+                      }`}
+                    >
+                      {meal.name}
+                    </Text>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          ) : (
+            <Text className='font-geist-mono text-base text-zinc-400 mt-4'>
+              No hay comidas sin registros disponibles para compensar.
+            </Text>
+          )}
+          <TouchableOpacity
+            onPress={() => proposeAdjustment(selectedMealIds)}
+            disabled={!canCreateProposal}
+            className={`rounded-full py-3 mt-4 ${canCreateProposal ? 'bg-white' : 'bg-zinc-800'}`}
+          >
+            <Text
+              className={`font-geist-mono text-sm text-center ${
+                canCreateProposal ? 'text-zinc-950' : 'text-zinc-500'
+              }`}
+            >
               Crear propuesta
             </Text>
           </TouchableOpacity>

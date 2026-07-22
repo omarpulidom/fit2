@@ -202,21 +202,38 @@ const score = (remaining: Macro, target: Macro) => {
   )
 }
 
+type RebalanceCandidate = {
+  cell: DailyPlanCell
+  value: number
+  score: number
+}
+
 export const proposeRebalance = (
   meals: Meal[],
   foods: ExternalFood[],
   appliedDeltas: MealExchangeDelta[] = [],
+  allowedMealIds?: string[],
 ): RebalanceProposal => {
   const projection = projectDailyPlan(meals, foods, appliedDeltas)
   const deltas: MealExchangeDelta[] = []
   let remaining = projection.remaining
   let currentScore = score(remaining, projection.target)
+  const allowedMeals = allowedMealIds ? new Set(allowedMealIds) : undefined
   const available = projection.meals.flatMap(({ cells }) =>
-    cells.filter((cell) => cell.adjustable && (cell.planned > 0 || cell.applied !== 0)),
+    cells.filter(
+      (cell) =>
+        cell.adjustable &&
+        (!allowedMeals || allowedMeals.has(cell.mealId)) &&
+        (cell.planned > 0 || cell.applied !== 0),
+    ),
   )
 
-  for (let iteration = 0; iteration < 1_000; iteration += 1) {
-    let candidate: { cell: DailyPlanCell; value: number } | undefined
+  const currentDeltaFor = (cell: DailyPlanCell) =>
+    deltas.find((delta) => delta.mealId === cell.mealId && delta.groupId === cell.groupId)
+      ?.value ?? 0
+
+  const pickCandidate = (cells: DailyPlanCell[]) => {
+    let candidate: RebalanceCandidate | undefined
     let candidateScore = currentScore
     const currentProteinDeficit = Math.max(
       0,
@@ -224,11 +241,8 @@ export const proposeRebalance = (
     )
     let candidateProteinDeficit = currentProteinDeficit
 
-    for (const cell of available) {
-      const currentDelta =
-        deltas.find((delta) => delta.mealId === cell.mealId && delta.groupId === cell.groupId)
-          ?.value ?? 0
-
+    for (const cell of cells) {
+      const currentDelta = currentDeltaFor(cell)
       for (const value of [-STEP, STEP]) {
         if (value < 0 && cell.before + currentDelta < STEP - EPSILON) continue
 
@@ -257,14 +271,21 @@ export const proposeRebalance = (
           improvesProteinConstraint ||
           (matchesProteinConstraint && nextScore < candidateScore - EPSILON)
         ) {
-          candidate = { cell, value }
+          candidate = {
+            cell,
+            value,
+            score: nextScore,
+          }
           candidateScore = nextScore
           candidateProteinDeficit = nextProteinDeficit
         }
       }
     }
 
-    if (!candidate) break
+    return candidate
+  }
+
+  const applyCandidate = (candidate: RebalanceCandidate) => {
     const existing = deltas.find(
       (delta) =>
         delta.mealId === candidate.cell.mealId && delta.groupId === candidate.cell.groupId,
@@ -278,7 +299,23 @@ export const proposeRebalance = (
       })
     }
     remaining = add(remaining, macroFor(candidate.cell.groupId, candidate.value))
-    currentScore = candidateScore
+    currentScore = candidate.score
+  }
+
+  const uncoveredMealIds = new Set(
+    allowedMealIds?.filter((mealId) => available.some((cell) => cell.mealId === mealId)) ?? [],
+  )
+  while (uncoveredMealIds.size > 0) {
+    const candidate = pickCandidate(available.filter((cell) => uncoveredMealIds.has(cell.mealId)))
+    if (!candidate) break
+    applyCandidate(candidate)
+    uncoveredMealIds.delete(candidate.cell.mealId)
+  }
+
+  for (let iteration = 0; iteration < 1_000; iteration += 1) {
+    const candidate = pickCandidate(available)
+    if (!candidate) break
+    applyCandidate(candidate)
   }
 
   if (projection.consumed.protein + remaining.protein < projection.base.protein - EPSILON) {
