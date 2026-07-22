@@ -325,7 +325,6 @@ function LoggedFoodRow({ food }: { food: GroupedFood }) {
       <View className='flex-1 min-w-0 pr-2'>
         <Text className='font-geist-mono text-base text-zinc-900'>
           {food.food.name}
-          {food.count > 1 ? ` × ${food.count}` : ''}
         </Text>
         <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>{detail}</Text>
         <Text className='font-geist-mono text-sm text-zinc-400 mt-1'>
