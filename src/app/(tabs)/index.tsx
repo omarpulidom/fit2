@@ -392,7 +392,6 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
   const normalizedQuery = normalizeCatalogSearch(query.trim())
   const isBrowsingGroups = !normalizedQuery && !selectedGroup
   const selectedMeal = meals.find((meal) => meal.id === mealId)
-  const isRootRegistration = source === 'smae' && isBrowsingGroups && !selectedFood
   const showMealFooter =
     draft.length > 0 && (isReviewingMeal || (source === 'smae' && !selectedFood))
   const resetToTop = useCallback(() => {
@@ -684,16 +683,16 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
               </TouchableOpacity>
             </View>
             {isReviewingMeal ? (
-              <DraftSummary
-                draft={draft}
-                mealName={selectedMeal?.name ?? 'esta comida'}
-                onRemove={removeDraftFood}
-              />
+              <>
+                <DraftSummary
+                  draft={draft}
+                  mealName={selectedMeal?.name ?? 'esta comida'}
+                  onRemove={removeDraftFood}
+                />
+                <MealPicker meals={meals} mealId={mealId} setMealId={selectMeal} />
+              </>
             ) : (
               <>
-                {isRootRegistration && (
-                  <MealPicker meals={meals} mealId={mealId} setMealId={selectMeal} />
-                )}
                 {(source === 'external' || (isBrowsingGroups && !selectedFood)) && (
                   <View className='flex-row mb-5 gap-2'>
                     <TouchableOpacity
