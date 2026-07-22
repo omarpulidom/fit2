@@ -276,12 +276,14 @@ function PlanMatrix({ projection }: { projection: ReturnType<typeof projectDaily
 }
 
 function MatrixCell({ cell }: { cell: DailyPlanCell }) {
-  const changed = Math.abs(cell.pending) > 0.001 || Math.abs(cell.applied) > 0.001
+  const transition = cellTransition(cell)
   const unplannedConsumption = cell.planned === 0 && cell.consumed > 0
   return (
     <View className='w-28 px-3 py-3 border-r border-zinc-100 min-h-14 justify-center'>
-      <Text className={`font-geist-mono text-sm ${changed ? 'text-zinc-950' : 'text-zinc-600'}`}>
-        {changed ? `${number(cell.before)} → ${number(cell.remaining)}` : number(cell.remaining)}
+      <Text className={`font-geist-mono text-sm ${transition ? 'text-zinc-950' : 'text-zinc-600'}`}>
+        {transition
+          ? `${number(transition.from)} → ${number(transition.to)}`
+          : number(cell.remaining)}
       </Text>
       {unplannedConsumption && (
         <Text className='font-geist-mono text-xs text-zinc-400 mt-1'>
@@ -316,7 +318,7 @@ function MealPlanCard({ meal }: { meal: ReturnType<typeof projectDailyPlan>['mea
 }
 
 function MealPlanRow({ cell }: { cell: DailyPlanCell }) {
-  const changed = Math.abs(cell.pending) > 0.001 || Math.abs(cell.applied) > 0.001
+  const transition = cellTransition(cell)
   return (
     <View className='flex-row justify-between items-center py-2 border-t border-zinc-100'>
       <View className='flex-1 pr-3'>
@@ -326,10 +328,29 @@ function MealPlanRow({ cell }: { cell: DailyPlanCell }) {
         </Text>
       </View>
       <Text className='font-geist-mono text-sm text-zinc-950'>
-        {changed ? `${number(cell.before)} → ${number(cell.remaining)}` : number(cell.remaining)} eq
+        {transition
+          ? `${number(transition.from)} → ${number(transition.to)}`
+          : number(cell.remaining)}{' '}
+        eq
       </Text>
     </View>
   )
+}
+
+function cellTransition(cell: DailyPlanCell) {
+  if (Math.abs(cell.pending) > 0.001) {
+    return {
+      from: cell.before,
+      to: cell.remaining,
+    }
+  }
+  if (Math.abs(cell.applied) > 0.001) {
+    return {
+      from: Math.max(0, cell.planned - cell.consumed),
+      to: cell.before,
+    }
+  }
+  return undefined
 }
 
 type AdjustmentPanelProps = {
