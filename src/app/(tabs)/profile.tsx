@@ -445,7 +445,7 @@ function AdjustmentPanel({
       meal,
       planned,
       consumed,
-      excess: positiveMacro(subtractMacro(consumed, planned)),
+      imbalance: absoluteMacro(subtractMacro(consumed, planned)),
     }))
     .filter(({ consumed }) => hasMacroValue(consumed))
   const adjustableCells = projection.meals.flatMap(({ cells }) =>
@@ -669,7 +669,7 @@ function AdjustmentContext({
     meal: Meal
     planned: Macro
     consumed: Macro
-    excess: Macro
+    imbalance: Macro
   }>
   afterDay?: Macro
 }) {
@@ -695,16 +695,16 @@ function AdjustmentContext({
           <Text className='font-geist-mono text-sm tracking-widest text-white'>
             COMIDAS REGISTRADAS
           </Text>
-          {registeredMeals.map(({ meal, planned, consumed, excess }) => (
+          {registeredMeals.map(({ meal, planned, consumed, imbalance }) => (
             <View key={meal.id} className='border-t border-zinc-700 pt-3 mt-3'>
               <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
               <MacroTransition before={planned} after={consumed} />
-              {hasMacroValue(excess) && (
+              {hasMacroValue(imbalance) && (
                 <>
                   <Text className='font-geist-mono text-xs tracking-widest text-amber-300 mt-3'>
                     POR COMPENSAR
                   </Text>
-                  <MacroLine values={excess} light />
+                  <MacroLine values={imbalance} light />
                 </>
               )}
             </View>
@@ -749,6 +749,15 @@ function positiveMacro(values: Macro): Macro {
     protein: Math.max(0, values.protein),
     carbs: Math.max(0, values.carbs),
     fat: Math.max(0, values.fat),
+  }
+}
+
+function absoluteMacro(values: Macro): Macro {
+  return {
+    kcal: Math.abs(values.kcal),
+    protein: Math.abs(values.protein),
+    carbs: Math.abs(values.carbs),
+    fat: Math.abs(values.fat),
   }
 }
 
