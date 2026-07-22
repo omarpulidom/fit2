@@ -4,7 +4,7 @@ import { Alert, ScrollView, Text, TextInput, TouchableOpacity, View } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
 import { type DailyPlanCell, projectDailyPlan } from '@/features/smae/daily-plan'
-import { GROUPS, getGroupLabel } from '@/features/smae/data'
+import { GROUP_MACROS, GROUPS, getGroupLabel } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
 import { GROUP_IDS, type Macro, type Meal, type SmaeGroupId } from '@/features/smae/types'
 
@@ -170,6 +170,8 @@ function DailyPlanView({
         ))}
       </View>
 
+      <PlanSummaryCard projection={projection} />
+
       <AdjustmentPanel
         adjustment={adjustment}
         hasImbalance={hasImbalance}
@@ -179,6 +181,46 @@ function DailyPlanView({
         discardAdjustment={discardAdjustment}
       />
     </ScrollView>
+  )
+}
+
+function PlanSummaryCard({ projection }: { projection: ReturnType<typeof projectDailyPlan> }) {
+  return (
+    <View className='mx-5 mt-5 bg-zinc-950 rounded-3xl p-5'>
+      <Text className='font-geist-mono text-lg tracking-widest text-zinc-400'>RESUMEN TOTAL</Text>
+      <View className='mt-4'>
+        {projection.meals.map(({ meal, cells }) => (
+          <View key={meal.id} className='pb-4 mb-4 border-b border-zinc-700'>
+            <Text className='font-geist-mono text-base text-white'>{meal.name}</Text>
+            <MacroLine values={plannedMacro(cells)} light />
+          </View>
+        ))}
+        <View>
+          <Text className='font-geist-mono text-base text-white'>TOTAL DEL DÍA</Text>
+          <MacroLine values={projection.base} light />
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function plannedMacro(cells: DailyPlanCell[]): Macro {
+  return cells.reduce<Macro>(
+    (total, cell) => {
+      const macro = GROUP_MACROS[cell.groupId]
+      return {
+        kcal: total.kcal + macro.kcal * cell.planned,
+        protein: total.protein + macro.protein * cell.planned,
+        carbs: total.carbs + macro.carbs * cell.planned,
+        fat: total.fat + macro.fat * cell.planned,
+      }
+    },
+    {
+      kcal: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    },
   )
 }
 
@@ -269,7 +311,6 @@ function MealPlanCard({ meal }: { meal: ReturnType<typeof projectDailyPlan>['mea
           Sin equivalentes configurados.
         </Text>
       )}
-      <MacroLine values={meal.macro} />
     </View>
   )
 }
