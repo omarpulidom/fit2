@@ -574,7 +574,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
               <Text className='font-geist-mono text-center text-white'>
                 {isReviewingMeal
                   ? `Confirmar ${selectedMeal?.name.toLocaleLowerCase() ?? 'comida'} · ${draft.length}`
-                  : `Revisar comida · ${draft.length}`}
+                  : `Revisar alimentos · ${draft.length}`}
               </Text>
             </TouchableOpacity>
           </View>
@@ -813,7 +813,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
                     {selectedFood && (
                       <TouchableOpacity onPress={addSmae} className='bg-zinc-950 rounded-full p-4'>
                         <Text className='font-geist-mono text-center text-white'>
-                          Agregar a {selectedMeal?.name ?? 'la comida'}
+                          Agregar alimento
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -864,7 +864,7 @@ function FoodModal({ visible, close, meals, saveMeal }: FoodModalProps) {
                       className='bg-zinc-950 rounded-full p-4'
                     >
                       <Text className='font-geist-mono text-center text-white'>
-                        Agregar a {selectedMeal?.name ?? 'la comida'}
+                        Agregar alimento
                       </Text>
                     </TouchableOpacity>
                   </>
