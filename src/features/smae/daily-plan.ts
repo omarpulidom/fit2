@@ -19,12 +19,16 @@ export type DailyPlanCell = {
   pending: number
   before: number
   remaining: number
+  adjustable: boolean
 }
 
 export type DailyPlanMeal = {
   meal: Meal
   cells: DailyPlanCell[]
-  macro: Macro
+  planned: Macro
+  consumed: Macro
+  available: Macro
+  remaining: Macro
 }
 
 export type DailyPlanProjection = {
@@ -116,20 +120,27 @@ export const projectDailyPlan = (
   const applied = deltaMap(appliedDeltas)
   const pending = deltaMap(pendingDeltas)
   const consumed = consumedMap(foods)
+  const registeredMealIds = new Set(foods.map((food) => food.mealId))
   let base = EMPTY_MACRO
   let remaining = EMPTY_MACRO
 
   const projectedMeals = meals.map((meal) => {
+    // A registration is treated as the current reality of that meal, even if the
+    // user adds more food to it later. Only meals without registrations can be
+    // changed by the live compensation proposal.
+    const adjustable = !registeredMealIds.has(meal.id)
     const cells = GROUPS.map((groupId) => {
       const planned = meal.exchanges[groupId] ?? 0
       const appliedValue = applied.get(keyFor(meal.id, groupId)) ?? 0
-      const pendingValue = pending.get(keyFor(meal.id, groupId)) ?? 0
+      // A saved proposal can outlive a new registration after an app refresh.
+      // Never let one of those stale deltas modify an already registered meal.
+      const pendingValue = adjustable ? (pending.get(keyFor(meal.id, groupId)) ?? 0) : 0
       const consumedValue = consumed.get(keyFor(meal.id, groupId)) ?? 0
       const before = Math.max(0, planned + appliedValue - consumedValue)
       const value = Math.max(0, before + pendingValue)
 
       base = add(base, macroFor(groupId, planned))
-      remaining = add(remaining, macroFor(groupId, value))
+      if (adjustable) remaining = add(remaining, macroFor(groupId, value))
 
       return {
         mealId: meal.id,
@@ -140,13 +151,23 @@ export const projectDailyPlan = (
         pending: pendingValue,
         before,
         remaining: value,
+        adjustable,
       }
     })
 
     return {
       meal,
       cells,
-      macro: cells.reduce(
+      planned: cells.reduce(
+        (total, cell) => add(total, macroFor(cell.groupId, cell.planned)),
+        EMPTY_MACRO,
+      ),
+      consumed: sumFoods(foods.filter((food) => food.mealId === meal.id)),
+      available: cells.reduce(
+        (total, cell) => add(total, macroFor(cell.groupId, cell.before)),
+        EMPTY_MACRO,
+      ),
+      remaining: cells.reduce(
         (total, cell) => add(total, macroFor(cell.groupId, cell.remaining)),
         EMPTY_MACRO,
       ),
@@ -188,42 +209,80 @@ export const proposeRebalance = (
   let remaining = projection.remaining
   let currentScore = score(remaining, projection.target)
   const available = projection.meals.flatMap(({ cells }) =>
-    cells.filter((cell) => cell.before >= STEP),
+    cells.filter((cell) => cell.adjustable && cell.before >= STEP),
   )
 
   for (let iteration = 0; iteration < 1_000; iteration += 1) {
-    let candidate: DailyPlanCell | undefined
+    let candidate: { cell: DailyPlanCell; value: number } | undefined
     let candidateScore = currentScore
+    const currentProteinDeficit = Math.max(
+      0,
+      projection.base.protein - (projection.consumed.protein + remaining.protein),
+    )
+    let candidateProteinDeficit = currentProteinDeficit
 
     for (const cell of available) {
-      const alreadyRemoved = -(
+      const currentDelta =
         deltas.find((delta) => delta.mealId === cell.mealId && delta.groupId === cell.groupId)
           ?.value ?? 0
-      )
-      if (cell.before - alreadyRemoved < STEP - EPSILON) continue
 
-      const next = subtract(remaining, macroFor(cell.groupId, STEP))
-      const nextScore = score(next, projection.target)
-      if (nextScore < candidateScore - EPSILON) {
-        candidate = cell
-        candidateScore = nextScore
+      for (const value of [-STEP, STEP]) {
+        if (value < 0 && cell.before + currentDelta < STEP - EPSILON) continue
+
+        const macro = macroFor(cell.groupId, value)
+        const next = add(remaining, macro)
+        const currentDayProtein = projection.consumed.protein + remaining.protein
+        const nextDayProtein = projection.consumed.protein + next.protein
+        // While protein is below the original plan, never take a step that makes
+        // it lower. Once it reaches the plan, do not let a later step cross below.
+        if (
+          (currentDayProtein < projection.base.protein - EPSILON &&
+            nextDayProtein < currentDayProtein - EPSILON) ||
+          (currentDayProtein >= projection.base.protein - EPSILON &&
+            nextDayProtein < projection.base.protein - EPSILON)
+        ) {
+          continue
+        }
+
+        const nextScore = score(next, projection.target)
+        const nextProteinDeficit = Math.max(0, projection.base.protein - nextDayProtein)
+        const improvesProteinConstraint =
+          nextProteinDeficit < candidateProteinDeficit - EPSILON
+        const matchesProteinConstraint =
+          Math.abs(nextProteinDeficit - candidateProteinDeficit) <= EPSILON
+        if (
+          improvesProteinConstraint ||
+          (matchesProteinConstraint && nextScore < candidateScore - EPSILON)
+        ) {
+          candidate = { cell, value }
+          candidateScore = nextScore
+          candidateProteinDeficit = nextProteinDeficit
+        }
       }
     }
 
     if (!candidate) break
     const existing = deltas.find(
-      (delta) => delta.mealId === candidate.mealId && delta.groupId === candidate.groupId,
+      (delta) =>
+        delta.mealId === candidate.cell.mealId && delta.groupId === candidate.cell.groupId,
     )
-    if (existing) existing.value -= STEP
+    if (existing) existing.value += candidate.value
     else {
       deltas.push({
-        mealId: candidate.mealId,
-        groupId: candidate.groupId,
-        value: -STEP,
+        mealId: candidate.cell.mealId,
+        groupId: candidate.cell.groupId,
+        value: candidate.value,
       })
     }
-    remaining = subtract(remaining, macroFor(candidate.groupId, STEP))
+    remaining = add(remaining, macroFor(candidate.cell.groupId, candidate.value))
     currentScore = candidateScore
+  }
+
+  if (projection.consumed.protein + remaining.protein < projection.base.protein - EPSILON) {
+    return {
+      deltas: [],
+      residual: projection.residual,
+    }
   }
 
   return {

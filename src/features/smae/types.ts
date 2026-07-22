@@ -78,6 +78,7 @@ export type SmaeState = {
   meals: Meal[]
   externalFoods: ExternalFood[]
   appliedAdjustments: MealExchangeDelta[]
+  appliedAdjustmentAt?: string
   adjustment?: Adjustment
   setExchange: (mealId: string, groupId: SmaeGroupId, value: number) => void
   addMeal: (name: string) => void

@@ -59,6 +59,7 @@ export const useSmaeStore = create<SmaeState>()(
               : m,
           ),
           appliedAdjustments: [],
+          appliedAdjustmentAt: undefined,
           adjustment: undefined,
         })),
       addMeal: (name) =>
@@ -129,6 +130,7 @@ export const useSmaeStore = create<SmaeState>()(
         if (!adjustment) return
         set((s) => ({
           appliedAdjustments: mergeDeltas(s.appliedAdjustments ?? [], adjustment.deltas),
+          appliedAdjustmentAt: new Date().toISOString(),
           adjustment: undefined,
         }))
       },
@@ -140,6 +142,7 @@ export const useSmaeStore = create<SmaeState>()(
         set({
           externalFoods: [],
           appliedAdjustments: [],
+          appliedAdjustmentAt: undefined,
           adjustment: undefined,
         }),
     }),
