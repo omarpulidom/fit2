@@ -201,7 +201,7 @@ export default function HomeTab() {
             </Text>
           </View>
           {externalFoods.length === 0 ? (
-            <Text className='font-geist-mono text-base text-zinc-500'>
+            <Text className='font-geist-mono mt-2 text-base text-zinc-500'>
               Aún no registras alimentos. Añade un alimento SMAE desde tu plan o uno externo aquí.
             </Text>
           ) : (
@@ -323,9 +323,7 @@ function LoggedFoodRow({ food }: { food: GroupedFood }) {
   return (
     <View className='py-3 border-t border-zinc-100 flex-row justify-between items-start'>
       <View className='flex-1 min-w-0 pr-2'>
-        <Text className='font-geist-mono text-base text-zinc-900'>
-          {food.food.name}
-        </Text>
+        <Text className='font-geist-mono text-base text-zinc-900'>{food.food.name}</Text>
         <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>{detail}</Text>
         <Text className='font-geist-mono text-sm text-zinc-400 mt-1'>
           {isMacroKnown

@@ -194,7 +194,7 @@ function DailyPlanView({
       </View>
 
       <View className='mx-5 mt-5 bg-zinc-950 rounded-3xl p-5'>
-        <Text className='font-geist-mono text-sm tracking-widest text-zinc-400'>
+        <Text className='font-geist-mono text-lg tracking-widest text-zinc-400'>
           RESTANTE DEL DÍA
         </Text>
         <MacroLine values={projection.remaining} light />
@@ -595,7 +595,7 @@ function AdjustmentPanel({
       ) : hasImbalance ? (
         <>
           <AdjustmentContext projection={projection} registeredMeals={registeredMeals} />
-          <Text className='font-geist-mono text-base text-zinc-300 mt-2'>
+          <Text className='font-geist-mono text-base text-zinc-300 mt-4'>
             Elige en qué comidas quieres compensar el desfase.
           </Text>
           {compensableMeals.length > 0 ? (
