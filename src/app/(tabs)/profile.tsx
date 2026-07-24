@@ -11,11 +11,11 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { AppBottomSheet } from '@/components/Elements/AppBottomSheet'
-import { WARNING_CLEAR_ALL_MMKVS_INSTANCES } from '@/lib/mmkv/stores'
 import { type DailyPlanCell, projectDailyPlan } from '@/features/smae/daily-plan'
 import { GROUP_MACROS, GROUPS, getGroupLabel } from '@/features/smae/data'
 import { useSmaeStore } from '@/features/smae/store'
 import { GROUP_IDS, type Macro, type Meal, type SmaeGroupId } from '@/features/smae/types'
+import { WARNING_CLEAR_ALL_MMKVS_INSTANCES } from '@/lib/mmkv/stores'
 
 const number = (value: number) => `${Number(value.toFixed(1))}`
 const MEAL_EXCHANGE_GROUPS = GROUPS.filter(
@@ -168,6 +168,8 @@ function DailyPlanView({
   resetDay,
   clearMMKV,
 }: DailyPlanViewProps) {
+  const [planView, setPlanView] = useState<'matrix' | 'meals'>('matrix')
+
   return (
     <ScrollView showsVerticalScrollIndicator={false} contentContainerClassName='pb-6'>
       <View className='px-6 pt-4'>
@@ -199,22 +201,57 @@ function DailyPlanView({
       </View>
 
       <View className='mt-5'>
-        <View className='px-6 mb-3'>
-          <Text className='font-geist-mono text-lg tracking-widest text-zinc-950'>
-            VISTA GENERAL
-          </Text>
-          <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
-            Saldo pendiente por grupo y comida.
-          </Text>
+        <View className='px-6 mb-3 flex-row items-start justify-between gap-4'>
+          <View className='flex-1'>
+            <Text className='font-geist-mono text-lg tracking-widest text-zinc-950'>
+              {planView === 'matrix' ? 'VISTA GENERAL' : 'POR COMIDA'}
+            </Text>
+            <Text className='font-geist-mono text-sm text-zinc-500 mt-1'>
+              {planView === 'matrix'
+                ? 'Saldo pendiente por grupo y comida.'
+                : 'Equivalentes pendientes en cada comida.'}
+            </Text>
+          </View>
+          <View className='flex-row rounded-full border border-zinc-200 bg-white p-1'>
+            <TouchableOpacity
+              accessibilityLabel='Ver tabla de equivalentes'
+              accessibilityState={{
+                selected: planView === 'matrix',
+              }}
+              onPress={() => setPlanView('matrix')}
+              className={`w-9 h-9 rounded-full items-center justify-center ${
+                planView === 'matrix' ? 'bg-zinc-950' : ''
+              }`}
+            >
+              <Feather
+                name='grid'
+                size={16}
+                color={planView === 'matrix' ? '#ffffff' : '#52525b'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel='Ver equivalentes por comida'
+              accessibilityState={{
+                selected: planView === 'meals',
+              }}
+              onPress={() => setPlanView('meals')}
+              className={`w-9 h-9 rounded-full items-center justify-center ${
+                planView === 'meals' ? 'bg-zinc-950' : ''
+              }`}
+            >
+              <Feather name='list' size={17} color={planView === 'meals' ? '#ffffff' : '#52525b'} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <PlanMatrix projection={projection} />
-      </View>
-
-      <View className='mx-5 mt-5'>
-        <Text className='font-geist-mono text-lg tracking-widest text-zinc-950'>POR COMIDA</Text>
-        {projection.meals.map((meal) => (
-          <MealPlanCard key={meal.meal.id} meal={meal} />
-        ))}
+        {planView === 'matrix' ? (
+          <PlanMatrix projection={projection} />
+        ) : (
+          <View className='mx-5'>
+            {projection.meals.map((meal) => (
+              <MealPlanCard key={meal.meal.id} meal={meal} />
+            ))}
+          </View>
+        )}
       </View>
 
       <PlanSummaryCard projection={projection} />
@@ -630,7 +667,10 @@ function AppliedAdjustmentSummary({
   )
 }
 
-function macroTotal(cells: DailyPlanCell[], value: 'planned' | 'before' | 'remaining' | 'after'): Macro {
+function macroTotal(
+  cells: DailyPlanCell[],
+  value: 'planned' | 'before' | 'remaining' | 'after',
+): Macro {
   return cells.reduce<Macro>(
     (total, cell) => {
       const macro = GROUP_MACROS[cell.groupId]
