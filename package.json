@@ -16,7 +16,8 @@
     "prebuild": "expo prebuild",
     "catalog:generate": "bun scripts/generate_smae_catalog.ts",
     "bump": "bun scripts/bump_version.ts",
-    "ts": "tsc --noEmit"
+    "ts": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@expo-google-fonts/geist-mono": "0.4.2",

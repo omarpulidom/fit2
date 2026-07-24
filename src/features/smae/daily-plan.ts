@@ -202,10 +202,155 @@ const score = (remaining: Macro, target: Macro) => {
   )
 }
 
-type RebalanceCandidate = {
-  cell: DailyPlanCell
-  value: number
-  score: number
+type RebalanceOption = {
+  groupId: SmaeGroupId
+  minSteps: number
+  maxSteps: number
+  perStep: Macro
+}
+
+type MacroBounds = {
+  min: Macro
+  max: Macro
+}
+
+const zeroMacro = (): Macro => ({
+  kcal: 0,
+  protein: 0,
+  carbs: 0,
+  fat: 0,
+})
+
+const scale = (macro: Macro, value: number): Macro => ({
+  kcal: macro.kcal * value,
+  protein: macro.protein * value,
+  carbs: macro.carbs * value,
+  fat: macro.fat * value,
+})
+
+const macroBounds = (options: RebalanceOption[]): MacroBounds =>
+  options.reduce<MacroBounds>(
+    (bounds, option) => ({
+      min: add(bounds.min, scale(option.perStep, option.minSteps)),
+      max: add(bounds.max, scale(option.perStep, option.maxSteps)),
+    }),
+    {
+      min: zeroMacro(),
+      max: zeroMacro(),
+    },
+  )
+
+const distanceToInterval = (value: number, min: number, max: number) => {
+  if (value < min) return min - value
+  if (value > max) return value - max
+  return 0
+}
+
+const lowerBoundScore = (remaining: Macro, target: Macro, bounds: MacroBounds) => {
+  const min = add(remaining, bounds.min)
+  const max = add(remaining, bounds.max)
+  return (
+    (distanceToInterval(target.kcal, min.kcal, max.kcal) / Math.max(Math.abs(target.kcal), 1)) **
+      2 +
+    (distanceToInterval(target.protein, min.protein, max.protein) /
+      Math.max(Math.abs(target.protein), 1)) **
+      2 +
+    (distanceToInterval(target.carbs, min.carbs, max.carbs) /
+      Math.max(Math.abs(target.carbs), 1)) **
+      2 +
+    (distanceToInterval(target.fat, min.fat, max.fat) / Math.max(Math.abs(target.fat), 1)) ** 2
+  )
+}
+
+const valuesNear = (min: number, max: number, preferred: number) =>
+  Array.from(
+    {
+      length: max - min + 1,
+    },
+    (_, index) => min + index,
+  ).sort((left, right) => Math.abs(left - preferred) - Math.abs(right - preferred) || left - right)
+
+const distributePositiveSteps = (
+  totalSteps: number,
+  cells: DailyPlanCell[],
+  mealKcal: Map<string, number>,
+) => {
+  const weights = cells.map((cell) => Math.max(0, mealKcal.get(cell.mealId) ?? 0))
+  const totalWeight = weights.reduce((total, weight) => total + weight, 0)
+  const shares = cells.map((_, index) =>
+    totalWeight ? (totalSteps * weights[index]) / totalWeight : totalSteps / cells.length,
+  )
+  const allocated = shares.map((share) => Math.floor(share))
+  let unallocated = totalSteps - allocated.reduce((total, value) => total + value, 0)
+  const order = shares
+    .map((share, index) => ({
+      index,
+      fraction: share - allocated[index],
+    }))
+    .sort((left, right) => right.fraction - left.fraction || left.index - right.index)
+
+  for (let index = 0; unallocated > 0; index = (index + 1) % order.length) {
+    allocated[order[index].index] += 1
+    unallocated -= 1
+  }
+
+  return allocated
+}
+
+const distributeDeltas = (
+  stepsByGroup: Map<SmaeGroupId, number>,
+  meals: DailyPlanMeal[],
+): MealExchangeDelta[] => {
+  const mealKcal = new Map(
+    meals.map(({ meal, remaining }) => [
+      meal.id,
+      remaining.kcal,
+    ]),
+  )
+  const deltas: MealExchangeDelta[] = []
+
+  for (const groupId of GROUPS) {
+    const totalSteps = stepsByGroup.get(groupId) ?? 0
+    if (!totalSteps) continue
+    const cells = meals.flatMap(({ cells }) => cells.filter((cell) => cell.groupId === groupId))
+    if (!cells.length) continue
+
+    if (totalSteps > 0) {
+      const allocated = distributePositiveSteps(totalSteps, cells, mealKcal)
+      cells.forEach((cell, index) => {
+        if (allocated[index]) {
+          deltas.push({
+            mealId: cell.mealId,
+            groupId,
+            value: allocated[index] * STEP,
+          })
+        }
+      })
+      continue
+    }
+
+    let stepsToRemove = -totalSteps
+    const removable = cells
+      .map((cell, index) => ({
+        cell,
+        index,
+        availableSteps: Math.max(0, Math.floor((cell.before + EPSILON) / STEP)),
+      }))
+      .sort((left, right) => right.availableSteps - left.availableSteps || left.index - right.index)
+    for (const entry of removable) {
+      const removed = Math.min(stepsToRemove, entry.availableSteps)
+      if (!removed) continue
+      deltas.push({
+        mealId: entry.cell.mealId,
+        groupId,
+        value: -removed * STEP,
+      })
+      stepsToRemove -= removed
+      if (!stepsToRemove) break
+    }
+  }
+
+  return deltas
 }
 
 export const proposeRebalance = (
@@ -215,118 +360,141 @@ export const proposeRebalance = (
   allowedMealIds?: string[],
 ): RebalanceProposal => {
   const projection = projectDailyPlan(meals, foods, appliedDeltas)
-  const deltas: MealExchangeDelta[] = []
-  let remaining = projection.remaining
-  let currentScore = score(remaining, projection.target)
   const allowedMeals = allowedMealIds ? new Set(allowedMealIds) : undefined
-  const available = projection.meals.flatMap(({ cells }) =>
-    cells.filter(
-      (cell) =>
-        cell.adjustable &&
-        (!allowedMeals || allowedMeals.has(cell.mealId)) &&
-        (cell.planned > 0 || cell.applied !== 0),
-    ),
+  const adjustableMeals = projection.meals.filter(
+    ({ meal, cells }) => cells[0]?.adjustable && (!allowedMeals || allowedMeals.has(meal.id)),
   )
-
-  const currentDeltaFor = (cell: DailyPlanCell) =>
-    deltas.find((delta) => delta.mealId === cell.mealId && delta.groupId === cell.groupId)
-      ?.value ?? 0
-
-  const pickCandidate = (cells: DailyPlanCell[]) => {
-    let candidate: RebalanceCandidate | undefined
-    let candidateScore = currentScore
-    const currentProteinDeficit = Math.max(
-      0,
-      projection.base.protein - (projection.consumed.protein + remaining.protein),
-    )
-    let candidateProteinDeficit = currentProteinDeficit
-
-    for (const cell of cells) {
-      const currentDelta = currentDeltaFor(cell)
-      for (const value of [-STEP, STEP]) {
-        if (value < 0 && cell.before + currentDelta < STEP - EPSILON) continue
-
-        const macro = macroFor(cell.groupId, value)
-        const next = add(remaining, macro)
-        const currentDayProtein = projection.consumed.protein + remaining.protein
-        const nextDayProtein = projection.consumed.protein + next.protein
-        // While protein is below the original plan, never take a step that makes
-        // it lower. Once it reaches the plan, do not let a later step cross below.
-        if (
-          (currentDayProtein < projection.base.protein - EPSILON &&
-            nextDayProtein < currentDayProtein - EPSILON) ||
-          (currentDayProtein >= projection.base.protein - EPSILON &&
-            nextDayProtein < projection.base.protein - EPSILON)
-        ) {
-          continue
-        }
-
-        const nextScore = score(next, projection.target)
-        const nextProteinDeficit = Math.max(0, projection.base.protein - nextDayProtein)
-        const improvesProteinConstraint =
-          nextProteinDeficit < candidateProteinDeficit - EPSILON
-        const matchesProteinConstraint =
-          Math.abs(nextProteinDeficit - candidateProteinDeficit) <= EPSILON
-        if (
-          improvesProteinConstraint ||
-          (matchesProteinConstraint && nextScore < candidateScore - EPSILON)
-        ) {
-          candidate = {
-            cell,
-            value,
-            score: nextScore,
-          }
-          candidateScore = nextScore
-          candidateProteinDeficit = nextProteinDeficit
-        }
-      }
-    }
-
-    return candidate
-  }
-
-  const applyCandidate = (candidate: RebalanceCandidate) => {
-    const existing = deltas.find(
-      (delta) =>
-        delta.mealId === candidate.cell.mealId && delta.groupId === candidate.cell.groupId,
-    )
-    if (existing) existing.value += candidate.value
-    else {
-      deltas.push({
-        mealId: candidate.cell.mealId,
-        groupId: candidate.cell.groupId,
-        value: candidate.value,
-      })
-    }
-    remaining = add(remaining, macroFor(candidate.cell.groupId, candidate.value))
-    currentScore = candidate.score
-  }
-
-  const uncoveredMealIds = new Set(
-    allowedMealIds?.filter((mealId) => available.some((cell) => cell.mealId === mealId)) ?? [],
-  )
-  while (uncoveredMealIds.size > 0) {
-    const candidate = pickCandidate(available.filter((cell) => uncoveredMealIds.has(cell.mealId)))
-    if (!candidate) break
-    applyCandidate(candidate)
-    uncoveredMealIds.delete(candidate.cell.mealId)
-  }
-
-  for (let iteration = 0; iteration < 1_000; iteration += 1) {
-    const candidate = pickCandidate(available)
-    if (!candidate) break
-    applyCandidate(candidate)
-  }
-
-  if (projection.consumed.protein + remaining.protein < projection.base.protein - EPSILON) {
+  if (!adjustableMeals.length) {
     return {
       deltas: [],
       residual: projection.residual,
     }
   }
 
+  const options = GROUPS.map<RebalanceOption>((groupId) => {
+    const availableEquivalents = adjustableMeals.reduce(
+      (total, { cells }) => total + (cells.find((cell) => cell.groupId === groupId)?.before ?? 0),
+      0,
+    )
+    return {
+      groupId,
+      minSteps: -Math.floor((availableEquivalents + EPSILON) / STEP),
+      maxSteps: 0,
+      perStep: macroFor(groupId, STEP),
+    }
+  })
+
+  // A feasible incumbent gives the finite bounds needed to search every valid
+  // discrete combination without imposing an arbitrary equivalent limit.
+  const seedSteps = new Map(
+    options.map((option) => [
+      option.groupId,
+      0,
+    ]),
+  )
+  let seedRemaining = projection.remaining
+  const proteinDeficit =
+    projection.base.protein - (projection.consumed.protein + seedRemaining.protein)
+  if (proteinDeficit > EPSILON) {
+    const proteinOption = options.find((option) => option.groupId === 'aoa_very_low_fat')
+    if (!proteinOption) {
+      return {
+        deltas: [],
+        residual: projection.residual,
+      }
+    }
+    const steps = Math.ceil(proteinDeficit / proteinOption.perStep.protein)
+    seedSteps.set(proteinOption.groupId, steps)
+    seedRemaining = add(seedRemaining, scale(proteinOption.perStep, steps))
+  }
+
+  let bestScore = score(seedRemaining, projection.target)
+  let bestSteps = new Map(seedSteps)
+  let bestMagnitude = [
+    ...seedSteps.values(),
+  ].reduce((total, value) => total + Math.abs(value), 0)
+  const maxFinalKcal =
+    projection.target.kcal +
+    Math.sqrt(bestScore) * Math.max(Math.abs(projection.target.kcal), 1) +
+    EPSILON
+
+  for (const option of options) {
+    const otherMinimumKcal = options
+      .filter((other) => other !== option)
+      .reduce((total, other) => total + other.minSteps * other.perStep.kcal, 0)
+    const upper = Math.floor(
+      (maxFinalKcal - projection.remaining.kcal - otherMinimumKcal) / option.perStep.kcal + EPSILON,
+    )
+    option.maxSteps = Math.max(option.minSteps, upper, seedSteps.get(option.groupId) ?? 0)
+  }
+
+  const orderedOptions = [
+    ...options,
+  ].sort(
+    (left, right) =>
+      right.perStep.kcal +
+      right.perStep.protein +
+      right.perStep.carbs +
+      right.perStep.fat -
+      (left.perStep.kcal + left.perStep.protein + left.perStep.carbs + left.perStep.fat),
+  )
+  const suffixBounds: MacroBounds[] = Array.from(
+    {
+      length: orderedOptions.length + 1,
+    },
+    () => ({
+      min: zeroMacro(),
+      max: zeroMacro(),
+    }),
+  )
+  for (let index = orderedOptions.length - 1; index >= 0; index -= 1) {
+    suffixBounds[index] = macroBounds(orderedOptions.slice(index))
+  }
+
+  const currentSteps = new Map<SmaeGroupId, number>()
+  const search = (index: number, remaining: Macro, magnitude: number) => {
+    const bounds = suffixBounds[index]
+    if (
+      projection.consumed.protein + remaining.protein + bounds.max.protein <
+      projection.base.protein - EPSILON
+    ) {
+      return
+    }
+    if (lowerBoundScore(remaining, projection.target, bounds) > bestScore - EPSILON) return
+
+    if (index === orderedOptions.length) {
+      if (projection.consumed.protein + remaining.protein < projection.base.protein - EPSILON)
+        return
+      const candidateScore = score(remaining, projection.target)
+      if (
+        candidateScore < bestScore - EPSILON ||
+        (Math.abs(candidateScore - bestScore) <= EPSILON && magnitude < bestMagnitude)
+      ) {
+        bestScore = candidateScore
+        bestSteps = new Map(currentSteps)
+        bestMagnitude = magnitude
+      }
+      return
+    }
+
+    const option = orderedOptions[index]
+    const ideal = Math.round((projection.target.kcal - remaining.kcal) / option.perStep.kcal)
+    for (const steps of valuesNear(option.minSteps, option.maxSteps, ideal)) {
+      currentSteps.set(option.groupId, steps)
+      search(index + 1, add(remaining, scale(option.perStep, steps)), magnitude + Math.abs(steps))
+    }
+    currentSteps.delete(option.groupId)
+  }
+
+  search(0, projection.remaining, 0)
+  const deltas = distributeDeltas(bestSteps, adjustableMeals)
+  const adjustedRemaining = deltas.reduce(
+    (remaining, delta) => add(remaining, macroFor(delta.groupId, delta.value)),
+    projection.remaining,
+  )
+
   return {
     deltas,
-    residual: subtract(remaining, projection.target),
+    residual: subtract(adjustedRemaining, projection.target),
   }
 }
